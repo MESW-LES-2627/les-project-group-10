@@ -1,0 +1,27 @@
+{
+  "name": "feup-connect",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FEUP Connect: platform connecting students with tutors and mentors",
+  "scripts": {
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,json,md,css}": "prettier --write"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MESW-LES-2627/les-project-group-10.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MESW-LES-2627/les-project-group-10/issues"
+  },
+  "homepage": "https://github.com/MESW-LES-2627/les-project-group-10#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10"
+  }
+}
