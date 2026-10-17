@@ -1,1 +1,49 @@
+/*
+ * Global styles and design tokens (colors, fonts) sourced from the
+ * Figma design system, exposed as Tailwind v4 theme variables.
+ */
 @import 'tailwindcss';
+
+@theme {
+  /* Surfaces */
+  --color-canvas: #f7f2ec;
+  --color-surface: #fffdfa;
+  --color-subtle: #efe8df;
+
+  /* Brand */
+  --color-primary: #153f35;
+  --color-primary-strong: #0e2c25;
+  --color-primary-soft: #dcefe6;
+  --color-secondary: #214edb;
+  --color-secondary-soft: #e6ecfd;
+  --color-tertiary: #e9633c;
+  --color-tertiary-strong: #b3431f;
+  --color-tertiary-soft: #fce6de;
+  --color-accent: #f2c14e;
+  --color-accent-strong: #7a5a00;
+  --color-accent-soft: #fdf3d6;
+
+  /* Text */
+  --color-ink: #12302a;
+  --color-ink-soft: #4e5f5a;
+  --color-ink-muted: #7f8c88;
+  --color-ink-inverse: #ffffff;
+
+  /* Borders */
+  --color-line: #e4dcd2;
+  --color-line-strong: #12302a;
+
+  /* Status */
+  --color-success: #1e8a5a;
+  --color-success-soft: #e3f4eb;
+  --color-danger: #c9372c;
+
+  /* Typography */
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
