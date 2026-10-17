@@ -13,7 +13,9 @@ export function StatsBand() {
     <div className="flex w-full flex-wrap justify-around gap-6 bg-primary px-6 py-8 lg:justify-between lg:px-30">
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col items-center gap-1">
-          <p className="font-display text-[32px] font-bold tracking-tight text-ink-inverse">{stat.value}</p>
+          <p className="font-display text-[32px] font-bold tracking-tight text-ink-inverse">
+            {stat.value}
+          </p>
           <p className="font-sans text-sm text-primary-soft">{stat.label}</p>
         </div>
       ))}

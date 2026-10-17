@@ -3,6 +3,7 @@
  */
 export * from './Avatar';
 export * from './Button';
+export * from './buttonVariants';
 export * from './Checkbox';
 export * from './FaqItem';
 export * from './Input';

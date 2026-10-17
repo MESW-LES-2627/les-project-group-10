@@ -13,7 +13,9 @@ export function AuthStats() {
     <div className="flex gap-10">
       {stats.map((stat) => (
         <div key={stat.label} className="flex flex-col gap-0.5">
-          <p className="font-display text-[22px] font-semibold tracking-tight text-ink-inverse">{stat.value}</p>
+          <p className="font-display text-[22px] font-semibold tracking-tight text-ink-inverse">
+            {stat.value}
+          </p>
           <p className="font-sans text-sm text-primary-soft">{stat.label}</p>
         </div>
       ))}

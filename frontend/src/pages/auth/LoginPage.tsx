@@ -69,7 +69,8 @@ export default function LoginPage() {
         <div className="flex gap-3 rounded-xl bg-accent-soft p-4">
           <Sparkles className="size-5 shrink-0 text-accent-strong" />
           <p className="font-sans text-sm text-accent-strong">
-            Prototype accounts — student: ana@fe.up.pt · mentor: mariana@fe.up.pt (password: demo1234)
+            Prototype accounts — student: ana@fe.up.pt · mentor: mariana@fe.up.pt (password:
+            demo1234)
           </p>
         </div>
       </form>

@@ -21,7 +21,9 @@ export function AuthLayout({ eyebrow, headline, subcopy, children }: AuthLayoutP
         <Logo variant="onDark" />
 
         <div className="flex flex-col gap-5">
-          <p className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-accent">{eyebrow}</p>
+          <p className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-accent">
+            {eyebrow}
+          </p>
           <h1 className="max-w-120 font-display text-[56px] font-bold leading-[1.08] tracking-tight text-ink-inverse">
             {headline}
           </h1>

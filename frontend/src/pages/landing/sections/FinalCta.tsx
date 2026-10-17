@@ -11,7 +11,9 @@ export function FinalCta() {
       <p className="font-display text-4xl font-bold tracking-tight text-primary lg:text-5xl">
         Ready to find your mentor?
       </p>
-      <p className="font-sans text-lg text-primary">Join 1,200+ FEUP students already learning with FEUP Connect.</p>
+      <p className="font-sans text-lg text-primary">
+        Join 1,200+ FEUP students already learning with FEUP Connect.
+      </p>
       <Link to="/signup" className={buttonVariants({ variant: 'primary' })}>
         Get started — it&rsquo;s free
         <ArrowRight className="size-5" />

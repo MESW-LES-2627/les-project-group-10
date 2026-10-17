@@ -36,7 +36,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
           {trailingIcon &&
             (onTrailingIconClick ? (
-              <button type="button" onClick={onTrailingIconClick} className="flex shrink-0 text-ink-muted">
+              <button
+                type="button"
+                onClick={onTrailingIconClick}
+                className="flex shrink-0 text-ink-muted"
+              >
                 {trailingIcon}
               </button>
             ) : (

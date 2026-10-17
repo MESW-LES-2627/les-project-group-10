@@ -25,7 +25,9 @@ export function MentorSummaryCard({ mentor }: { mentor: MentorSummary }) {
       <div className="flex items-center gap-3.5">
         <Avatar initials={mentor.initials} tone={mentor.avatarTone} size="md" />
         <div className="flex flex-col gap-0.5">
-          <p className="font-display text-lg font-semibold tracking-tight text-ink">{mentor.name}</p>
+          <p className="font-display text-lg font-semibold tracking-tight text-ink">
+            {mentor.name}
+          </p>
           <p className="font-sans text-sm text-ink-muted">{mentor.role}</p>
         </div>
       </div>
@@ -40,12 +42,17 @@ export function MentorSummaryCard({ mentor }: { mentor: MentorSummary }) {
           <p className="font-sans text-sm font-medium text-ink">{mentor.rating}</p>
         </div>
         <p className="flex items-baseline gap-1">
-          <span className="font-display text-lg font-semibold tracking-tight text-ink">{mentor.price}</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">
+            {mentor.price}
+          </span>
           <span className="font-sans text-xs font-medium text-ink-muted">/ session</span>
         </p>
       </div>
 
-      <Link to={`/mentors/${mentor.id}`} className={buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true })}>
+      <Link
+        to={`/mentors/${mentor.id}`}
+        className={buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true })}
+      >
         View profile
       </Link>
     </div>

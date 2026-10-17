@@ -14,7 +14,13 @@ export interface RoleOptionCardProps {
  * Selectable card for the sign-up "I'm a student / I'm a mentor"
  * role picker.
  */
-export function RoleOptionCard({ icon, title, description, selected, onSelect }: RoleOptionCardProps) {
+export function RoleOptionCard({
+  icon,
+  title,
+  description,
+  selected,
+  onSelect,
+}: RoleOptionCardProps) {
   return (
     <button
       type="button"

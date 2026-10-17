@@ -20,13 +20,17 @@ export function Faq() {
   return (
     <div className="flex w-full flex-col gap-16 px-6 pb-24 pt-20 lg:flex-row lg:px-30">
       <div className="flex flex-1 flex-col items-start gap-4">
-        <p className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-tertiary">FAQ</p>
+        <p className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-tertiary">
+          FAQ
+        </p>
         <p className="font-display text-4xl font-bold leading-tight tracking-tight text-ink lg:text-5xl">
           Questions?
           <br />
           We&rsquo;ve got you.
         </p>
-        <p className="font-sans text-base text-ink-soft">Can&rsquo;t find what you&rsquo;re looking for?</p>
+        <p className="font-sans text-base text-ink-soft">
+          Can&rsquo;t find what you&rsquo;re looking for?
+        </p>
         <Link to="/contact" className={buttonVariants({ variant: 'outlined', size: 'md' })}>
           Contact support
         </Link>

@@ -23,7 +23,10 @@ export function Logo({ variant = 'onLight', className }: LogoProps) {
           onDark ? 'bg-accent' : 'bg-primary',
         )}
       >
-        <ArrowUpRight className={clsx('size-5.5', onDark ? 'text-primary' : 'text-ink-inverse')} strokeWidth={2.5} />
+        <ArrowUpRight
+          className={clsx('size-5.5', onDark ? 'text-primary' : 'text-ink-inverse')}
+          strokeWidth={2.5}
+        />
       </span>
       <span
         className={clsx(

@@ -24,7 +24,9 @@ export default function SignUpPage() {
     >
       <form className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="font-display text-5xl font-bold tracking-tight text-ink">Create your account</h1>
+          <h1 className="font-display text-5xl font-bold tracking-tight text-ink">
+            Create your account
+          </h1>
           <p className="font-sans text-base text-ink-soft">
             Pick how you&rsquo;ll use FEUP Connect. You can add the other role later.
           </p>
@@ -90,7 +92,12 @@ export default function SignUpPage() {
           }
         />
 
-        <Button type="submit" fullWidth disabled={!agreedToTerms} icon={<ArrowRight className="size-5" />}>
+        <Button
+          type="submit"
+          fullWidth
+          disabled={!agreedToTerms}
+          icon={<ArrowRight className="size-5" />}
+        >
           Create {role} account
         </Button>
 
