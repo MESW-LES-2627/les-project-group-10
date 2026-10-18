@@ -20,6 +20,41 @@ npm install                 # root: Prettier + Git hooks (Husky)
 docker compose up -d db     # PostgreSQL
 ```
 
+## pgAdmin (optional database GUI)
+
+pgAdmin 4 is defined in `docker-compose.yml` and runs next to PostgreSQL. Use it to browse tables and
+run queries. Do not change the schema through it: schema changes go in numbered migration files.
+
+1. In `.env`, set `PGADMIN_DEFAULT_EMAIL` to a valid email format (for example `admin@example.com`)
+   and set `PGADMIN_DEFAULT_PASSWORD`.
+2. Start both services (this also starts `db`):
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Open http://localhost:5050. pgAdmin runs in desktop mode here, so there is no login screen.
+4. Register the database once: right-click **Servers**, then **Register > Server...**, and fill in:
+
+   | Tab        | Field                | Value                                     |
+   | ---------- | -------------------- | ----------------------------------------- |
+   | General    | Name                 | `FEUP Connect` (any name)                 |
+   | Connection | Host name/address    | `db`                                      |
+   | Connection | Port                 | `5432`                                    |
+   | Connection | Maintenance database | `POSTGRES_DB` from `.env`                 |
+   | Connection | Username             | `POSTGRES_USER` from `.env`               |
+   | Connection | Password             | `POSTGRES_PASSWORD` from `.env` (save it) |
+
+   The host is `db`, not `localhost`, because pgAdmin runs inside Docker Compose and reaches
+   PostgreSQL through the service name.
+
+5. Browse the tables under **Servers > FEUP Connect > Databases > (your db) > Schemas > public >
+   Tables**. The user table is called `"user"` and must be double-quoted in SQL
+   (`SELECT * FROM "user";`) because `user` is a reserved word in PostgreSQL.
+
+Your server registration is kept in the `pgadmin-data` volume, so you only do step 4 once.
+`docker compose down -v` wipes it together with the database.
+
 ## Run
 
 Use two terminals:
@@ -47,4 +82,7 @@ Open http://localhost:5173. You should see "FEUP Connect: API says ok".
 ## Troubleshooting
 
 - **Port 5432 already in use:** stop your local Postgres, or change the port mapping in `docker-compose.yml`.
+- **Port 5050 already in use:** change the left side of `ports: ['5050:80']` for `pgadmin` in `docker-compose.yml`.
+- **pgAdmin container restarts or exits:** `PGADMIN_DEFAULT_EMAIL` in `.env` must be a valid email
+  address. Check the logs with `docker compose logs pgadmin`.
 - **`ECONNREFUSED` in the frontend:** the backend isn't running (Terminal 1).
