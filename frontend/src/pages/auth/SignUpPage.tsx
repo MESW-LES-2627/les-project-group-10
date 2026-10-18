@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Eye, EyeOff, GraduationCap, Lock, Mail, User } from 'lucide-react';
 import { Button, Checkbox, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
+import { signIn } from '@/lib/auth';
 import { RoleOptionCard } from '@/components/auth/RoleOptionCard';
 
 type Role = 'student' | 'mentor';
@@ -20,6 +21,7 @@ export default function SignUpPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (role === 'student') signIn('student');
     navigate(role === 'mentor' ? '/mentor-onboarding/profile' : '/student-onboarding/interests');
   }
 

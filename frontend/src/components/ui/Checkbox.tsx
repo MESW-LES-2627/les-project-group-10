@@ -28,7 +28,7 @@ export function Checkbox({ checked, onChange, label, id }: CheckboxProps) {
       />
       <span className="flex size-5 shrink-0 items-center justify-center rounded-md border border-line bg-surface peer-checked:border-primary peer-checked:bg-primary">
         <Check
-          className="size-3.5 text-ink-inverse opacity-0 peer-checked:opacity-100"
+          className={checked ? 'size-3.5 text-ink-inverse' : 'size-3.5 text-ink-inverse opacity-0'}
           strokeWidth={3}
         />
       </span>

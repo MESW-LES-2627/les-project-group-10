@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Avatar, Tag, buttonVariants } from '@/components/ui';
 import type { AvatarTone } from '@/components/ui';
 import type { TagTone } from '@/components/ui';
+import { gatePath } from '@/lib/auth';
 
 export interface MentorSummary {
   id: string;
@@ -52,7 +53,7 @@ export function MentorSummaryCard({ mentor }: { mentor: MentorSummary }) {
       </div>
 
       <Link
-        to={`/mentors/${mentor.id}`}
+        to={gatePath(`/mentors/${mentor.id}`)}
         className={buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true })}
       >
         View profile

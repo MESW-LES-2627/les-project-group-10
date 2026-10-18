@@ -75,7 +75,7 @@ export default function StudentAllSetPage() {
 
         <div className="flex w-full flex-col gap-3 sm:flex-row">
           <Link
-            to="/mentors"
+            to="/dashboard/mentors"
             className={buttonVariants({
               variant: 'outlined',
               fullWidth: true,
@@ -85,7 +85,7 @@ export default function StudentAllSetPage() {
             Browse all mentors
           </Link>
           <Link
-            to="/"
+            to="/dashboard"
             className={buttonVariants({ variant: 'blue', fullWidth: true, className: 'sm:flex-1' })}
           >
             Go to my dashboard

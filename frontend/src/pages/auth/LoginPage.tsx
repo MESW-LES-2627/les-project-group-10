@@ -1,15 +1,25 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import type { FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react';
 import { Button, Checkbox, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
+import { safeNext, signIn } from '@/lib/auth';
 
 /**
  * `/login` screen: email/password form inside the shared AuthLayout.
  */
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    signIn('student');
+    navigate(safeNext(searchParams.get('next')) ?? '/dashboard');
+  }
 
   return (
     <AuthLayout
@@ -17,7 +27,7 @@ export default function LoginPage() {
       headline="Your next session is one click away."
       subcopy="Pick up where you left off — upcoming sessions, chats and bookings are waiting."
     >
-      <form className="flex flex-col gap-6">
+      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-2">
           <h1 className="font-display text-5xl font-bold tracking-tight text-ink">Log in</h1>
           <p className="font-sans text-base text-ink-soft">
