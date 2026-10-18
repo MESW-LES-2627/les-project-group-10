@@ -5,6 +5,8 @@ import clsx from 'clsx';
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
   hint?: ReactNode;
+  /** Message shown under the field, e.g. a validation error from the API. */
+  error?: string;
 }
 
 /**
@@ -12,7 +14,7 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
  * character counter) shown next to the label.
  */
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, hint, id, className, ...props }, ref) => {
+  ({ label, hint, error, id, className, ...props }, ref) => {
     const generatedId = useId();
     const textareaId = id ?? generatedId;
 
@@ -27,12 +29,20 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           id={textareaId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${textareaId}-error` : undefined}
           className={clsx(
-            'h-32 w-full resize-none rounded-[10px] border border-line bg-surface p-4 font-sans text-base text-ink placeholder:text-ink-muted focus:border-line-strong focus:outline-none',
+            'h-32 w-full resize-none rounded-[10px] border bg-surface p-4 font-sans text-base text-ink placeholder:text-ink-muted focus:outline-none',
+            error ? 'border-danger' : 'border-line focus:border-line-strong',
             className,
           )}
           {...props}
         />
+        {error && (
+          <p id={`${textareaId}-error`} role="alert" className="font-sans text-sm text-danger">
+            {error}
+          </p>
+        )}
       </div>
     );
   },

@@ -29,7 +29,10 @@ INSERT INTO category (name, slug) VALUES
   ('Mathematics',                     'mathematics'),
   ('Physics',                         'physics'),
   ('Electronics',                     'electronics'),
-  ('Career Guidance',                 'career-guidance')
+  ('Career Guidance',                 'career-guidance'),
+  ('Electrical Engineering',          'electrical-engineering'),
+  ('Mechanical Engineering',          'mechanical-engineering'),
+  ('Civil Engineering',               'civil-engineering')
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -101,6 +104,24 @@ FROM (VALUES
    ARRAY['Calculus', 'Linear Algebra'])
 ) AS v(user_id, headline, bio, skills)
 ON CONFLICT DO NOTHING;
+
+-- Location and languages. An UPDATE (not part of the INSERT above) so that re-running
+-- the seed also fills them in for mentors that already exist.
+UPDATE mentor m
+SET location = v.location, languages = v.languages
+FROM (VALUES
+  ('10000000-0000-0000-0000-000000000001', 'Porto, Portugal',  ARRAY['Portuguese', 'English']),
+  ('10000000-0000-0000-0000-000000000002', 'Lisbon, Portugal', ARRAY['Portuguese', 'English', 'Spanish']),
+  ('10000000-0000-0000-0000-000000000003', 'Porto, Portugal',  ARRAY['Portuguese', 'English', 'French']),
+  ('10000000-0000-0000-0000-000000000004', 'Braga, Portugal',  ARRAY['Portuguese', 'English']),
+  ('10000000-0000-0000-0000-000000000005', 'Porto, Portugal',  ARRAY['Portuguese', 'English', 'German']),
+  ('10000000-0000-0000-0000-000000000006', 'Coimbra, Portugal', ARRAY['Portuguese'])
+) AS v(user_id, location, languages)
+WHERE m.user_id = v.user_id::uuid;
+
+-- Seeded mentors are complete profiles, so the mentor search can list them.
+UPDATE mentor SET onboarding_finished = true
+WHERE user_id::text LIKE '10000000-0000-0000-0000-%';
 
 -- ---------------------------------------------------------------------------
 -- Mentor <-> category

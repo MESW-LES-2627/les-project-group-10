@@ -1,5 +1,7 @@
 import type { TagTone } from '@/components/ui';
 import type { Service } from '@/components/mentor-onboarding/ServiceList';
+import type { MentorOnboardingPayload } from '@/api/mentors';
+import type { MentorOnboardingData } from '@/pages/mentor-onboarding/mentorOnboardingContext';
 
 const TAG_TONES: TagTone[] = ['green', 'blue', 'orange', 'yellow'];
 
@@ -42,4 +44,29 @@ export function lowestServicePrice(services: Service[]): string | null {
  */
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Converts the onboarding answers into the API body. The form keeps the
+ * fee in euros and the duration in minutes as text; the API wants cents
+ * and whole minutes. Availability is not sent (it isn't saved yet).
+ */
+export function toOnboardingPayload(data: MentorOnboardingData): MentorOnboardingPayload {
+  return {
+    username: data.fullName,
+    location: data.location,
+    languages: data.languages,
+    linkedinUrl: data.linkedIn,
+    tagline: data.tagline,
+    headline: data.headline,
+    subjects: data.subjects,
+    skills: data.skills,
+    services: data.services.map((service) => ({
+      title: service.title,
+      description: service.description,
+      priceCents: Math.round(Number(service.price) * 100),
+      durationMinutes: Number(service.duration),
+    })),
+    bio: data.bio,
+  };
 }

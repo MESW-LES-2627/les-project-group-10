@@ -4,6 +4,7 @@ import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
+import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
 import { MentorOnboardingProvider } from '@/pages/mentor-onboarding/MentorOnboardingProvider';
 import MentorProfileStep from '@/pages/mentor-onboarding/MentorProfileStep';
 import MentorExpertiseStep from '@/pages/mentor-onboarding/MentorExpertiseStep';
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
   { path: '/signup', element: <SignUpPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  { path: '/mentors/:id', element: <MentorProfilePage /> },
   {
     path: '/mentor-onboarding',
     element: <MentorOnboardingProvider />,

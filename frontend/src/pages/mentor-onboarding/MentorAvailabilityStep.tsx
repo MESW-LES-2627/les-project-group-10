@@ -7,7 +7,15 @@ import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { AvailabilityGrid } from '@/components/mentor-onboarding/AvailabilityGrid';
 import { ProfilePreviewCard } from '@/components/mentor-onboarding/ProfilePreviewCard';
 import { useMentorOnboarding } from './useMentorOnboarding';
-import { getInitials, lowestServicePrice, tagsFromSkills } from '@/lib/mentorProfile';
+import {
+  getInitials,
+  lowestServicePrice,
+  tagsFromSkills,
+  toOnboardingPayload,
+} from '@/lib/mentorProfile';
+import { completeMentorOnboarding } from '@/api/mentors';
+import { ApiError } from '@/api/client';
+import { useAuth } from '@/auth/useAuth';
 
 /**
  * Mentor onboarding step 3 of 3: calendar connection, weekly
@@ -16,7 +24,10 @@ import { getInitials, lowestServicePrice, tagsFromSkills } from '@/lib/mentorPro
 export default function MentorAvailabilityStep() {
   const navigate = useNavigate();
   const { data, updateData } = useMentorOnboarding();
+  const { refresh } = useAuth();
   const [confirmed, setConfirmed] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const selectedSlots = useMemo(() => new Set(data.availableSlotKeys), [data.availableSlotKeys]);
   const slotsCount = selectedSlots.size;
@@ -28,9 +39,27 @@ export default function MentorAvailabilityStep() {
     updateData({ availableSlotKeys: [...next] });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    navigate('/mentor-onboarding/pending');
+    setError('');
+    setSubmitting(true);
+
+    try {
+      await completeMentorOnboarding(toOnboardingPayload(data));
+      await refresh(); // the account now has onboardingFinished = true
+      navigate('/mentor-onboarding/pending');
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fields).length > 0) {
+        // these fields live on the earlier steps, so list what needs fixing
+        setError(`Please go back and fix: ${Object.values(err.fields).join('. ')}.`);
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Something went wrong. Check your connection and try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const previewTags = tagsFromSkills(data.skills);
@@ -57,10 +86,10 @@ export default function MentorAvailabilityStep() {
             type="submit"
             form="mentor-availability-form"
             variant="blue"
-            disabled={!confirmed || slotsCount === 0}
+            disabled={!confirmed || slotsCount === 0 || submitting}
             icon={<ArrowRight className="size-5" />}
           >
-            Submit for review
+            {submitting ? 'Submitting…' : 'Submit for review'}
           </Button>
         </>
       }
@@ -120,6 +149,11 @@ export default function MentorAvailabilityStep() {
             onChange={setConfirmed}
             label="I confirm this information is accurate and I agree to the Mentor Terms."
           />
+          {error && (
+            <p role="alert" className="font-sans text-sm text-danger">
+              {error}
+            </p>
+          )}
         </div>
       </form>
     </OnboardingLayout>

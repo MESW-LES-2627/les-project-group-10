@@ -7,13 +7,14 @@ import { SkillTagInput } from '@/components/mentor-onboarding/SkillTagInput';
 import { ServiceList } from '@/components/mentor-onboarding/ServiceList';
 import { useMentorOnboarding } from './useMentorOnboarding';
 
+// must match the category names in the database (see backend/db/seed.sql)
 const SUBJECT_OPTIONS = [
   'Software Engineering',
-  'Data Science',
-  'Career & Internships',
-  'Electrical Eng.',
-  'Mechanical Eng.',
-  'Civil Eng.',
+  'Data Science and AI',
+  'Career Guidance',
+  'Electrical Engineering',
+  'Mechanical Engineering',
+  'Civil Engineering',
   'Mathematics',
   'Physics',
 ];

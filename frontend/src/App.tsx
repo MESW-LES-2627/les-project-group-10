@@ -1,9 +1,14 @@
 import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from '@/auth/AuthProvider';
 import { router } from '@/routes/router';
 
 /**
- * Root component: mounts the app router.
+ * Root component: tracks the logged-in user and mounts the app router.
  */
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
