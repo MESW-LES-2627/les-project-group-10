@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import type { FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Eye, EyeOff, GraduationCap, Lock, Mail, User } from 'lucide-react';
 import { Button, Checkbox, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
@@ -12,9 +13,15 @@ type Role = 'student' | 'mentor';
  * AuthLayout.
  */
 export default function SignUpPage() {
+  const navigate = useNavigate();
   const [role, setRole] = useState<Role>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    navigate(role === 'mentor' ? '/mentor-onboarding/profile' : '/');
+  }
 
   return (
     <AuthLayout
@@ -22,7 +29,7 @@ export default function SignUpPage() {
       headline="Learn from people who’ve been there."
       subcopy="Find tutors, mentors and industry pros. Compare fees, book a session and get the help you need. One clear step at a time."
     >
-      <form className="flex flex-col gap-6">
+      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-2">
           <h1 className="font-display text-5xl font-bold tracking-tight text-ink">
             Create your account
