@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { pool } from '../../db/pool.js';
 import { HttpError } from '../../middleware/errorHandler.js';
 import type { MentorOnboardingInput } from './mentors.schemas.js';
 
@@ -61,4 +62,75 @@ export async function completeOnboarding(
       [userId, service.title, service.description, service.priceCents, service.durationMinutes],
     );
   }
+}
+
+type MentorRow = {
+  id: string;
+  username: string;
+  headline: string | null;
+  tagline: string | null;
+  bio: string;
+  location: string | null;
+  languages: string[];
+  linkedin_url: string | null;
+  skills: string[];
+};
+
+type ServiceRow = {
+  id: string;
+  title: string;
+  description: string;
+  price_cents: number;
+  duration_minutes: number;
+};
+
+// A mentor's public profile. Only finished, active mentors are visible, so a mentor who is
+// banned, deleted or still in onboarding looks the same as an id that does not exist.
+export async function findPublicMentor(id: string) {
+  const { rows } = await pool.query<MentorRow>(
+    `SELECT m.user_id AS id, u.username, m.headline, m.tagline, m.bio, m.location,
+            m.languages, m.linkedin_url, m.skills
+       FROM mentor m
+       JOIN "user" u ON u.id = m.user_id
+      WHERE m.user_id = $1 AND m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted`,
+    [id],
+  );
+  const mentor = rows[0];
+  if (!mentor) return undefined;
+
+  const subjects = await pool.query<{ name: string }>(
+    `SELECT c.name
+       FROM mentor_category mc
+       JOIN category c ON c.id = mc.category_id
+      WHERE mc.mentor_id = $1
+      ORDER BY c.name`,
+    [id],
+  );
+  const services = await pool.query<ServiceRow>(
+    `SELECT id, title, description, price_cents, duration_minutes
+       FROM service
+      WHERE mentor_id = $1 AND is_active
+      ORDER BY price_cents, title`,
+    [id],
+  );
+
+  return {
+    id: mentor.id,
+    username: mentor.username,
+    headline: mentor.headline ?? '',
+    tagline: mentor.tagline ?? '',
+    bio: mentor.bio,
+    location: mentor.location ?? '',
+    languages: mentor.languages,
+    linkedinUrl: mentor.linkedin_url ?? '',
+    skills: mentor.skills,
+    subjects: subjects.rows.map((row) => row.name),
+    services: services.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      priceCents: row.price_cents,
+      durationMinutes: row.duration_minutes,
+    })),
+  };
 }

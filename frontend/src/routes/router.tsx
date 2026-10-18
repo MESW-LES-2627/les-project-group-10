@@ -4,7 +4,6 @@ import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
-import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
 import { MentorOnboardingProvider } from '@/pages/mentor-onboarding/MentorOnboardingProvider';
 import MentorProfileStep from '@/pages/mentor-onboarding/MentorProfileStep';
 import MentorExpertiseStep from '@/pages/mentor-onboarding/MentorExpertiseStep';
@@ -14,6 +13,13 @@ import { StudentOnboardingProvider } from '@/pages/student-onboarding/StudentOnb
 import StudentInterestsStep from '@/pages/student-onboarding/StudentInterestsStep';
 import StudentPreferencesStep from '@/pages/student-onboarding/StudentPreferencesStep';
 import StudentAllSetPage from '@/pages/student-onboarding/StudentAllSetPage';
+import StudentDashboardPage from '@/pages/dashboard/StudentDashboardPage';
+import FindMentorsPage from '@/pages/mentors/FindMentorsPage';
+import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
+import CheckoutPage from '@/pages/mentors/CheckoutPage';
+import BookingConfirmedPage from '@/pages/mentors/BookingConfirmedPage';
+import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
+import { RequireAuth } from '@/layouts/RequireAuth';
 
 /**
  * App-wide route table.
@@ -24,7 +30,33 @@ export const router = createBrowserRouter([
   { path: '/signup', element: <SignUpPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
-  { path: '/mentors/:id', element: <MentorProfilePage /> },
+  { path: '/dashboard', element: <StudentDashboardPage /> },
+  { path: '/dashboard/mentors', element: <DashboardFindMentorsPage /> },
+  { path: '/mentors', element: <FindMentorsPage /> },
+  {
+    path: '/mentors/:mentorId',
+    element: (
+      <RequireAuth>
+        <MentorProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/mentors/:mentorId/checkout',
+    element: (
+      <RequireAuth>
+        <CheckoutPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/mentors/:mentorId/booked',
+    element: (
+      <RequireAuth>
+        <BookingConfirmedPage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/mentor-onboarding',
     element: <MentorOnboardingProvider />,

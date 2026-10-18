@@ -5,6 +5,8 @@ import clsx from 'clsx';
 export interface LogoProps {
   /** Which background the logo sits on, so colors keep contrast. */
   variant?: 'onLight' | 'onDark';
+  /** Where the wordmark links. Defaults to the public home page. */
+  to?: string;
   className?: string;
 }
 
@@ -12,11 +14,11 @@ export interface LogoProps {
  * FEUP Connect wordmark, linking home. `variant` picks light- or
  * dark-background colors.
  */
-export function Logo({ variant = 'onLight', className }: LogoProps) {
+export function Logo({ variant = 'onLight', to = '/', className }: LogoProps) {
   const onDark = variant === 'onDark';
 
   return (
-    <Link to="/" className={clsx('inline-flex items-center gap-2.5', className)}>
+    <Link to={to} className={clsx('inline-flex items-center gap-2.5', className)}>
       <span
         className={clsx(
           'flex size-10 items-center justify-center rounded-[10px]',

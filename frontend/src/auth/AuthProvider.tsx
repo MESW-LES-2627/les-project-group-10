@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import * as authApi from '@/api/auth';
 import type { AuthUser } from '@/api/auth';
 import { ApiError } from '@/api/client';
+import { signIn, signOut } from '@/lib/auth';
 import { AuthContext, type AuthContextValue } from './authContext';
 
 /**
@@ -46,6 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // The dashboard and booking pages still read a session from localStorage (lib/auth.ts).
+  // Mirror the real, cookie-based session into it so the two never disagree.
+  useEffect(() => {
+    if (loading) return;
+    if (user) signIn(user.isMentor ? 'mentor' : 'student');
+    else signOut();
+  }, [user, loading]);
 
   const value = useMemo<AuthContextValue>(() => {
     async function requireUser(): Promise<AuthUser> {

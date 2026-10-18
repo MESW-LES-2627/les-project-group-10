@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Button, Checkbox, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/useAuth';
+import { safeNext } from '@/lib/auth';
 import { pathAfterLogin } from '@/lib/authRedirect';
 
 /**
@@ -13,6 +14,7 @@ import { pathAfterLogin } from '@/lib/authRedirect';
  */
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +33,8 @@ export default function LoginPage() {
 
     try {
       const user = await login({ email, password });
-      navigate(pathAfterLogin(user));
+      // a page that sent the visitor here (?next=...) wins over the default landing page
+      navigate(safeNext(searchParams.get('next')) ?? pathAfterLogin(user));
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
         setFieldErrors(error.fields);
