@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, Textarea } from '@/components/ui';
 
 export interface Service {
   id: string;
   title: string;
+  description: string;
+  /** minutes, kept as the text of a number input (e.g. "60") */
   duration: string;
+  /** euros, kept as the text of a number input (e.g. "35" or "12.50") */
   price: string;
 }
 
@@ -15,7 +18,13 @@ export interface ServiceListProps {
   onChange: (services: Service[]) => void;
 }
 
-const EMPTY_DRAFT: Service = { id: '', title: '', duration: '', price: '' };
+const EMPTY_DRAFT: Service = { id: '', title: '', description: '', duration: '', price: '' };
+
+function isServiceDraftValid(draft: Service): boolean {
+  return Boolean(
+    draft.title.trim() && draft.description.trim() && draft.duration.trim() && draft.price.trim(),
+  );
+}
 
 let nextServiceId = 0;
 
@@ -53,7 +62,7 @@ export function ServiceList({ services, onChange }: ServiceListProps) {
   }
 
   function handleSave() {
-    if (!draft.title.trim() || !draft.duration.trim() || !draft.price.trim()) return;
+    if (!isServiceDraftValid(draft)) return;
     const exists = services.some((service) => service.id === draft.id);
     onChange(
       exists
@@ -91,11 +100,13 @@ export function ServiceList({ services, onChange }: ServiceListProps) {
               <p className="font-sans text-base font-semibold text-ink">{service.title}</p>
               <div className="flex items-center gap-1">
                 <Clock className="size-3.5 text-ink-muted" />
-                <p className="font-sans text-xs font-medium text-ink-muted">{service.duration}</p>
+                <p className="font-sans text-xs font-medium text-ink-muted">
+                  {service.duration} min
+                </p>
               </div>
             </div>
             <p className="font-display text-lg font-semibold tracking-tight text-ink">
-              {service.price}
+              €{service.price}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -159,7 +170,7 @@ interface ServiceEditFormProps {
  * HTML doesn't support nested forms.
  */
 function ServiceEditForm({ draft, onDraftChange, onSave, onCancel }: ServiceEditFormProps) {
-  const isValid = Boolean(draft.title.trim() && draft.duration.trim() && draft.price.trim());
+  const isValid = isServiceDraftValid(draft);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') {
@@ -184,9 +195,11 @@ function ServiceEditForm({ draft, onDraftChange, onSave, onCancel }: ServiceEdit
         </div>
         <div className="w-32 shrink-0">
           <Input
-            type="text"
-            label="Duration"
-            placeholder="60 min"
+            type="number"
+            min={5}
+            step={1}
+            label="Duration (min)"
+            placeholder="60"
             value={draft.duration}
             onChange={(event) => onDraftChange({ ...draft, duration: event.target.value })}
             onKeyDown={handleKeyDown}
@@ -194,15 +207,24 @@ function ServiceEditForm({ draft, onDraftChange, onSave, onCancel }: ServiceEdit
         </div>
         <div className="w-24 shrink-0">
           <Input
-            type="text"
-            label="Fee"
-            placeholder="€35"
+            type="number"
+            min={0.5}
+            step={0.01}
+            label="Fee (€)"
+            placeholder="35"
             value={draft.price}
             onChange={(event) => onDraftChange({ ...draft, price: event.target.value })}
             onKeyDown={handleKeyDown}
           />
         </div>
       </div>
+      <Textarea
+        label="Description"
+        placeholder="What will you cover in this session?"
+        maxLength={500}
+        value={draft.description}
+        onChange={(event) => onDraftChange({ ...draft, description: event.target.value })}
+      />
       <div className="flex items-center justify-end gap-4">
         <button
           type="button"

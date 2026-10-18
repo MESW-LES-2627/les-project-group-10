@@ -17,6 +17,7 @@ import { Avatar, buttonVariants } from '@/components/ui';
 import { NavBar } from '@/components/layout/NavBar';
 import { BookingPanel } from '@/components/mentors/BookingPanel';
 import { getMentorById } from '@/api/mentors';
+import { useAuth } from '@/auth/useAuth';
 import type { Mentor } from '@/api/mentors';
 import { firstName, readSelection, selectionSearch } from '@/lib/booking';
 import clsx from 'clsx';
@@ -36,6 +37,7 @@ export default function MentorProfilePage() {
   const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [missing, setMissing] = useState(false);
   const [serviceId, setServiceId] = useState('');
@@ -121,6 +123,7 @@ export default function MentorProfilePage() {
   if (!service) return null;
   const visiblePosts = showAllPosts ? mentor.posts : mentor.posts.slice(0, 2);
   const subject = mentor.subjects[0] ?? 'Mentoring';
+  const isOwner = user?.id === mentor.id;
 
   function continueToPayment() {
     navigate(
@@ -150,6 +153,12 @@ export default function MentorProfilePage() {
           <span>·</span>
           <span className="text-ink">{mentor.name}</span>
         </div>
+
+        {isOwner && (
+          <p className="rounded-xl bg-accent-soft p-4 font-sans text-sm text-accent-strong">
+            This is how students see your profile. You can&rsquo;t book your own sessions.
+          </p>
+        )}
 
         <section className="flex flex-col gap-5 rounded-3xl bg-primary p-7 text-ink-inverse lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
@@ -434,15 +443,17 @@ export default function MentorProfilePage() {
             </section>
           </div>
 
-          <BookingPanel
-            mentor={mentor}
-            service={service}
-            date={date}
-            time={time}
-            onDateChange={selectDate}
-            onTimeChange={setTime}
-            onContinue={continueToPayment}
-          />
+          {!isOwner && (
+            <BookingPanel
+              mentor={mentor}
+              service={service}
+              date={date}
+              time={time}
+              onDateChange={selectDate}
+              onTimeChange={setTime}
+              onContinue={continueToPayment}
+            />
+          )}
         </div>
       </div>
     </div>

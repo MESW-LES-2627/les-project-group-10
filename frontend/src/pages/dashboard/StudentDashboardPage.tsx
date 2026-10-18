@@ -7,8 +7,15 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { UpcomingSessionRow } from '@/components/dashboard/UpcomingSessionRow';
 import { getMentors } from '@/api/mentors';
+import { useAuth } from '@/auth/useAuth';
 import type { Mentor } from '@/api/mentors';
-import { formatEuro, formatShortDate, readStudentBookings, sessionRange } from '@/lib/booking';
+import {
+  firstName,
+  formatEuro,
+  formatShortDate,
+  readStudentBookings,
+  sessionRange,
+} from '@/lib/booking';
 import type { StudentBooking } from '@/lib/booking';
 
 /**
@@ -16,6 +23,7 @@ import type { StudentBooking } from '@/lib/booking';
  * they have booked; every other section stays empty until there is data.
  */
 export default function StudentDashboardPage() {
+  const { user } = useAuth();
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [bookings, setBookings] = useState<StudentBooking[]>([]);
 
@@ -56,7 +64,7 @@ export default function StudentDashboardPage() {
           <div className="flex w-full flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1.5">
               <p className="font-display text-3xl font-bold tracking-tight text-ink">
-                Welcome back, Ana
+                Welcome back{user ? `, ${firstName(user.username)}` : ''}
               </p>
               <p className="font-sans text-base text-ink-soft">{welcome}</p>
             </div>

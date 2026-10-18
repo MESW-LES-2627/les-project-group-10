@@ -19,6 +19,7 @@ import {
 import { Button, Checkbox, InfoNote, Input, Logo, SelectField } from '@/components/ui';
 import { Avatar } from '@/components/ui';
 import { getMentorById } from '@/api/mentors';
+import { useAuth } from '@/auth/useAuth';
 import type { Mentor, MentorService } from '@/api/mentors';
 import {
   PLATFORM_FEE,
@@ -51,12 +52,13 @@ export default function CheckoutPage() {
   } | null>(null);
   const [ready, setReady] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>('card');
-  const [fullName, setFullName] = useState('Ana Oliveira');
-  const [email, setEmail] = useState('ana.oliveira@fe.up.pt');
+  const { user } = useAuth();
+  const [fullName, setFullName] = useState(user?.username ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242');
   const [expiry, setExpiry] = useState('12 / 28');
   const [cvc, setCvc] = useState('123');
-  const [nameOnCard, setNameOnCard] = useState('Ana M. Oliveira');
+  const [nameOnCard, setNameOnCard] = useState(user?.username ?? '');
   const [country, setCountry] = useState('Portugal');
   const [saveCard, setSaveCard] = useState(true);
 

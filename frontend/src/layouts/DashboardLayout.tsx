@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { Bell, Menu, X } from 'lucide-react';
 import { Avatar } from '@/components/ui';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { useAuth } from '@/auth/useAuth';
+import { getInitials } from '@/lib/mentorProfile';
 
 export interface DashboardLayoutProps {
   title: string;
@@ -15,6 +17,7 @@ export interface DashboardLayoutProps {
  */
 export function DashboardLayout({ title, children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <div className="flex min-h-screen w-full bg-canvas">
@@ -47,7 +50,7 @@ export function DashboardLayout({ title, children }: DashboardLayoutProps) {
             >
               <Bell className="size-5" />
             </button>
-            <Avatar initials="AO" tone="tertiary" size="sm" />
+            <Avatar initials={user ? getInitials(user.username) : ''} tone="tertiary" size="sm" />
           </div>
         </header>
         <div className="flex-1">{children}</div>

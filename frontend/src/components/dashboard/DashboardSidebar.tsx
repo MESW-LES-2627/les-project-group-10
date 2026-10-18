@@ -11,7 +11,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { Avatar, Logo } from '@/components/ui';
-import { signOut } from '@/lib/auth';
+import { useAuth } from '@/auth/useAuth';
+import { getInitials } from '@/lib/mentorProfile';
 
 interface RailItem {
   label: string;
@@ -48,6 +49,7 @@ export interface DashboardSidebarProps {
  */
 export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
   const { pathname, hash } = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <aside
@@ -101,16 +103,18 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
 
       <div className="flex flex-col gap-3 border-t border-line p-4">
         <div className="flex items-center gap-3">
-          <Avatar initials="AO" tone="tertiary" size="sm" />
+          <Avatar initials={user ? getInitials(user.username) : ''} tone="tertiary" size="sm" />
           <div className="min-w-0">
-            <p className="truncate font-sans text-sm font-semibold text-ink">Ana Oliveira</p>
-            <p className="truncate font-sans text-xs text-ink-muted">L.EIC · FEUP</p>
+            <p className="truncate font-sans text-sm font-semibold text-ink">
+              {user?.username ?? ''}
+            </p>
+            <p className="truncate font-sans text-xs text-ink-muted">{user?.email ?? ''}</p>
           </div>
         </div>
         <Link
           to="/"
           onClick={() => {
-            signOut();
+            logout().catch((error: unknown) => console.error('Log out failed:', error));
             onNavigate();
           }}
           className="flex items-center gap-3 rounded-[10px] px-3.5 py-2.5 font-sans text-sm font-medium text-ink-soft hover:bg-canvas"

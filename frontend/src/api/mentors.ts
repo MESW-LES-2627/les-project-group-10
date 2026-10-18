@@ -1,3 +1,5 @@
+import { apiGet, apiPost, ApiError } from './client';
+import { getInitials, tagsFromSkills } from '@/lib/mentorProfile';
 import type { AvatarTone, TagTone } from '@/components/ui';
 
 export interface MentorService {
@@ -420,9 +422,110 @@ export async function getMentors(): Promise<Mentor[]> {
   return MENTORS;
 }
 
+/** What `GET /api/mentors/:id` returns. */
+interface MentorProfileResponse {
+  id: string;
+  username: string;
+  headline: string;
+  tagline: string;
+  bio: string;
+  location: string;
+  languages: string[];
+  linkedinUrl: string;
+  skills: string[];
+  subjects: string[];
+  services: {
+    id: string;
+    title: string;
+    description: string;
+    priceCents: number;
+    durationMinutes: number;
+  }[];
+}
+
 /**
- * Returns one mentor by id, or null if no such mentor exists.
+ * Fills the page's `Mentor` shape from the API. Ratings, reviews, posts,
+ * experience and availability aren't stored yet, so they are empty.
+ */
+function toMentor(profile: MentorProfileResponse): Mentor {
+  return {
+    id: profile.id,
+    initials: getInitials(profile.username),
+    avatarTone: 'primary',
+    name: profile.username,
+    verified: false,
+    headline: profile.headline,
+    role: profile.headline,
+    rating: 0,
+    reviewCount: 0,
+    sessionCount: 0,
+    location: profile.location,
+    languages: profile.languages.join(', '),
+    replyTime: '',
+    nextAvailable: '',
+    subjects: profile.subjects,
+    tags: tagsFromSkills(profile.skills, 8),
+    bio: profile.tagline || profile.bio,
+    about: profile.bio,
+    experience: [],
+    services: profile.services.map((service) => ({
+      id: service.id,
+      title: service.title,
+      description: service.description,
+      duration: `${service.durationMinutes} min`,
+      price: service.priceCents / 100,
+    })),
+    posts: [],
+    availability: [],
+    reviews: [],
+  };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Returns one mentor by id, or null if no such mentor exists. A UUID is a
+ * real mentor from the API; any other id is one of the mock mentors.
  */
 export async function getMentorById(id: string): Promise<Mentor | null> {
-  return MENTORS.find((mentor) => mentor.id === id) ?? null;
+  if (!UUID_PATTERN.test(id)) {
+    return MENTORS.find((mentor) => mentor.id === id) ?? null;
+  }
+  try {
+    const { mentor } = await apiGet<{ mentor: MentorProfileResponse }>(`/api/mentors/${id}`);
+    return toMentor(mentor);
+  } catch (error) {
+    if (!(error instanceof ApiError && error.status === 404)) {
+      console.error('Could not load the mentor:', error);
+    }
+    return null;
+  }
+}
+
+export interface OnboardingServicePayload {
+  title: string;
+  description: string;
+  priceCents: number;
+  durationMinutes: number;
+}
+
+/**
+ * Body of `POST /api/mentors/me/onboarding`: everything the onboarding
+ * collects except availability.
+ */
+export interface MentorOnboardingPayload {
+  username: string;
+  location: string;
+  languages: string[];
+  linkedinUrl: string;
+  tagline: string;
+  headline: string;
+  subjects: string[];
+  skills: string[];
+  services: OnboardingServicePayload[];
+  bio: string;
+}
+
+export function completeMentorOnboarding(payload: MentorOnboardingPayload): Promise<void> {
+  return apiPost('/api/mentors/me/onboarding', payload);
 }

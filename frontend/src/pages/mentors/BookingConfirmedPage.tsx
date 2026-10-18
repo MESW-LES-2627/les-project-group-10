@@ -4,6 +4,7 @@ import { ArrowRight, Check, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-r
 import { Avatar, Button, Textarea, buttonVariants } from '@/components/ui';
 import { NavBar } from '@/components/layout/NavBar';
 import { getMentorById } from '@/api/mentors';
+import { useAuth } from '@/auth/useAuth';
 import type { Mentor, MentorService } from '@/api/mentors';
 import {
   bookingRef,
@@ -21,6 +22,7 @@ import {
  * on the student's dashboard.
  */
 export default function BookingConfirmedPage() {
+  const { user } = useAuth();
   const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
   const [mentor, setMentor] = useState<Mentor | null>(null);
@@ -115,7 +117,7 @@ export default function BookingConfirmedPage() {
         </h1>
         <p className="max-w-xl text-center font-sans text-lg text-ink-soft">
           Payment confirmed. Your receipt and calendar invite are on their way to
-          ana.oliveira@fe.up.pt.
+          {user?.email ?? 'your email'}.
         </p>
 
         <article className="w-full overflow-hidden rounded-3xl border border-line bg-surface shadow-[0px_16px_40px_0px_rgba(13,43,36,0.1)]">
