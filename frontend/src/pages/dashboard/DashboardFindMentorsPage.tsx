@@ -1,17 +1,11 @@
-import { Navigate } from 'react-router-dom';
 import { MentorDirectory } from '@/components/mentors/MentorDirectory';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { readSession } from '@/lib/auth';
 
 /**
  * `/dashboard/mentors`: the same mentor search, inside the signed-in
  * dashboard instead of the public site header.
  */
 export default function DashboardFindMentorsPage() {
-  if (!readSession()) {
-    return <Navigate to="/mentors" replace />;
-  }
-
   return (
     <DashboardLayout title="Find a mentor">
       <div className="flex flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">

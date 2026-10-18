@@ -30,8 +30,22 @@ export const router = createBrowserRouter([
   { path: '/signup', element: <SignUpPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
-  { path: '/dashboard', element: <StudentDashboardPage /> },
-  { path: '/dashboard/mentors', element: <DashboardFindMentorsPage /> },
+  {
+    path: '/dashboard',
+    element: (
+      <RequireAuth>
+        <StudentDashboardPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/mentors',
+    element: (
+      <RequireAuth>
+        <DashboardFindMentorsPage />
+      </RequireAuth>
+    ),
+  },
   { path: '/mentors', element: <FindMentorsPage /> },
   {
     path: '/mentors/:mentorId',
