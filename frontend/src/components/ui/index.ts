@@ -11,6 +11,8 @@ export * from './InfoNote';
 export * from './Input';
 export * from './Logo';
 export * from './MultiSelectField';
+export * from './RangeSlider';
 export * from './SectionHeading';
+export * from './SelectField';
 export * from './Tag';
 export * from './Textarea';

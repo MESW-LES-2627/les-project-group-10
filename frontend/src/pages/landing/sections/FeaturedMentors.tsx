@@ -1,8 +1,8 @@
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { buttonVariants, SectionHeading } from '@/components/ui';
-import { MentorSummaryCard } from './MentorSummaryCard';
-import type { MentorSummary } from './MentorSummaryCard';
+import { MentorSummaryCard } from '@/components/mentors/MentorSummaryCard';
+import type { MentorSummary } from '@/components/mentors/MentorSummaryCard';
 
 const mentors: MentorSummary[] = [
   {

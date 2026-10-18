@@ -17,7 +17,9 @@ export interface MentorSummary {
 }
 
 /**
- * Single mentor card used in the landing page's "Featured mentors" grid.
+ * Compact mentor card (avatar, name, role, one tag, rating and
+ * price) used in the landing page's featured grid and the student
+ * onboarding recommendations.
  */
 export function MentorSummaryCard({ mentor }: { mentor: MentorSummary }) {
   return (

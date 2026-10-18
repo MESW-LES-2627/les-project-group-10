@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Clock, ShieldCheck, Sparkles } from 'lucide-react';
 import { Avatar, Tag, buttonVariants } from '@/components/ui';
-import { OnboardingTopBar } from '@/layouts/OnboardingTopBar';
+// import { OnboardingTopBar } from '@/layouts/OnboardingTopBar';
 import { useMentorOnboarding } from './useMentorOnboarding';
 import { getInitials, lowestServicePrice, pluralize, tagsFromSkills } from '@/lib/mentorProfile';
 
@@ -24,7 +24,7 @@ export default function MentorPendingVerificationPage() {
 
   return (
     <div className="flex w-full flex-col items-center bg-canvas">
-      <OnboardingTopBar label="Mentor profile · Under review" exitLabel="Exit" />
+      {/* <OnboardingTopBar label="Mentor profile · Under review" exitLabel="Exit" /> */}
 
       <div className="flex w-full max-w-170 flex-col items-center gap-7 px-6 pb-24 pt-16">
         <span className="flex size-20 items-center justify-center rounded-full bg-accent-soft">

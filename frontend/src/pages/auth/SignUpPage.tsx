@@ -20,7 +20,7 @@ export default function SignUpPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    navigate(role === 'mentor' ? '/mentor-onboarding/profile' : '/');
+    navigate(role === 'mentor' ? '/mentor-onboarding/profile' : '/student-onboarding/interests');
   }
 
   return (

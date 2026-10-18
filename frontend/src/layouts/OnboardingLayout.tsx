@@ -3,35 +3,46 @@ import clsx from 'clsx';
 import { OnboardingTopBar } from './OnboardingTopBar';
 
 export interface OnboardingLayoutProps {
-  step: 1 | 2 | 3;
+  step: number;
+  totalSteps?: number;
   stepLabel: string;
   eyebrow: string;
   title: string;
   description: string;
+  exitLabel?: string;
+  exitHref?: string;
   children: ReactNode;
   actions: ReactNode;
 }
 
 /**
- * Shared shell for the 3-step mentor onboarding flow: top bar with
- * step label, progress bar, heading, form card, and action row.
+ * Shared shell for a multi-step onboarding flow (mentor or student):
+ * top bar with step label, progress bar, heading, form card, and
+ * action row.
  */
 export function OnboardingLayout({
   step,
+  totalSteps = 3,
   stepLabel,
   eyebrow,
   title,
   description,
+  exitLabel,
+  exitHref,
   children,
   actions,
 }: OnboardingLayoutProps) {
   return (
     <div className="flex w-full flex-col items-center bg-canvas">
-      <OnboardingTopBar label={`Step ${step} of 3 · ${stepLabel}`} />
+      <OnboardingTopBar
+        label={`Step ${step} of ${totalSteps} · ${stepLabel}`}
+        exitLabel={exitLabel}
+        exitHref={exitHref}
+      />
 
       <div className="flex w-full max-w-190 flex-col gap-8 px-6 pb-24 pt-14">
         <div className="flex w-full gap-2">
-          {[1, 2, 3].map((index) => (
+          {Array.from({ length: totalSteps }, (_, index) => index + 1).map((index) => (
             <div
               key={index}
               className={clsx(

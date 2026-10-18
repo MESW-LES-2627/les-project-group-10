@@ -1,3 +1,5 @@
+import { apiGet } from './client';
+
 /**
  * Fallback list used if the languages API is unreachable.
  */
@@ -23,12 +25,11 @@ interface LibreTranslateLanguage {
  * Fetches the list of language names from LibreTranslate's free,
  * public `/languages` endpoint (no API key required).
  */
-export async function fetchLanguages(): Promise<string[]> {
+export async function getLanguages(): Promise<string[]> {
   try {
-    const response = await fetch('https://libretranslate.com/languages');
-    if (!response.ok) throw new Error(`Languages API responded with ${response.status}`);
-
-    const languages: LibreTranslateLanguage[] = await response.json();
+    const languages = await apiGet<LibreTranslateLanguage[]>(
+      'https://libretranslate.com/languages',
+    );
     return languages.map((language) => language.name).sort((a, b) => a.localeCompare(b));
   } catch (error) {
     console.error('Falling back to the static language list:', error);

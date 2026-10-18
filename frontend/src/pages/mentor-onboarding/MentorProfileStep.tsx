@@ -5,7 +5,7 @@ import { ArrowRight, Globe, Link2, MapPin, ShieldCheck, User } from 'lucide-reac
 import { Button, buttonVariants, InfoNote, Input, MultiSelectField } from '@/components/ui';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { PhotoUploader } from '@/components/mentor-onboarding/PhotoUploader';
-import { FALLBACK_LANGUAGES, fetchLanguages } from '@/lib/languages';
+import { FALLBACK_LANGUAGES, getLanguages } from '@/api/languages';
 import { useMentorOnboarding } from './useMentorOnboarding';
 
 /**
@@ -20,7 +20,7 @@ export default function MentorProfileStep() {
   useEffect(() => {
     let cancelled = false;
 
-    fetchLanguages().then((options) => {
+    getLanguages().then((options) => {
       if (!cancelled) setLanguageOptions(options);
     });
 
