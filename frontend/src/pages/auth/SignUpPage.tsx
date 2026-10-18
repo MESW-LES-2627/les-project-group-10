@@ -20,7 +20,7 @@ export default function SignUpPage() {
     <AuthLayout
       eyebrow="For FEUP students & mentors"
       headline="Learn from people who’ve been there."
-      subcopy="Find tutors, mentors and industry pros. Compare fees, book a session and get the help you need — one clear step at a time."
+      subcopy="Find tutors, mentors and industry pros. Compare fees, book a session and get the help you need. One clear step at a time."
     >
       <form className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">

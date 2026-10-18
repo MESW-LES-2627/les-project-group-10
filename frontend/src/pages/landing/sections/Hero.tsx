@@ -25,7 +25,7 @@ export function Hero() {
 
         <p className="font-sans text-lg leading-relaxed text-ink-soft lg:max-w-130">
           Learn from tutors, mentors and industry pros who&rsquo;ve walked your path. Compare fees,
-          book a session and get real answers — one clear step at a time.
+          book a session and get real answers. One clear step at a time.
         </p>
 
         <div className="flex flex-wrap items-start gap-3.5">
