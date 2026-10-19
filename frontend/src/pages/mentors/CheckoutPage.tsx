@@ -54,7 +54,11 @@ export default function CheckoutPage() {
         if (cancelled) return;
         setMentor(data);
         setSelection(data ? readSelection(searchParams.toString(), data) : null);
-        setStripePromise(loadStripe(config.publishableKey));
+        setStripePromise(
+          loadStripe(config.publishableKey, {
+            developerTools: { assistant: { enabled: false } },
+          }),
+        );
       })
       .catch((cause: unknown) => {
         if (!cancelled)
