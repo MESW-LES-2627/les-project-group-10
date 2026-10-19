@@ -60,6 +60,7 @@ export interface Mentor {
   replyTime: string;
   nextAvailable: string;
   subjects: string[];
+  skills: string[];
   tags: MentorTag[];
   bio: string;
   about: string;
@@ -118,6 +119,7 @@ function toMentor(profile: MentorProfileResponse): Mentor {
     replyTime: '',
     nextAvailable: '',
     subjects: profile.subjects,
+    skills: profile.skills,
     tags: tagsFromSkills(profile.skills, 8),
     bio: profile.tagline || profile.bio,
     about: profile.bio,

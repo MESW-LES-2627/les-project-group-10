@@ -7,6 +7,7 @@ import type { MentorFiltersState } from '@/components/mentors/MentorFilters';
 import { MentorSearchResultCard } from '@/components/mentors/MentorSearchResultCard';
 import { getMentors } from '@/api/mentors';
 import type { Mentor } from '@/api/mentors';
+import { matchesMentorSearch } from '@/lib/mentorSearch';
 
 const LANGUAGE_CODES: Record<string, string> = {
   Portuguese: 'PT',
@@ -48,16 +49,10 @@ export function MentorDirectory() {
   const languageOptions = Object.keys(LANGUAGE_CODES);
 
   const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
     return mentors.filter((mentor) => {
       const lowestPrice = Math.min(...mentor.services.map((service) => service.price));
 
-      const matchesQuery =
-        normalizedQuery === '' ||
-        mentor.name.toLowerCase().includes(normalizedQuery) ||
-        mentor.subjects.some((subject) => subject.toLowerCase().includes(normalizedQuery)) ||
-        mentor.bio.toLowerCase().includes(normalizedQuery);
+      const matchesQuery = matchesMentorSearch(mentor, query);
 
       const matchesSubjects =
         filters.subjects.length === 0 ||
@@ -142,7 +137,7 @@ export function MentorDirectory() {
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by name, subject or skill"
+            placeholder="Search by name, skill, subject or service"
             className="min-w-0 flex-1 bg-transparent font-sans text-base text-ink placeholder:text-ink-muted focus:outline-none"
           />
         </div>
