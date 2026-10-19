@@ -1,64 +1,68 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Check, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
-import { Avatar, Button, Textarea, buttonVariants } from '@/components/ui';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Check, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Avatar, Button, buttonVariants } from '@/components/ui';
 import { NavBar } from '@/components/layout/NavBar';
-import { getMentorById } from '@/api/mentors';
-import { useAuth } from '@/auth/useAuth';
-import type { Mentor, MentorService } from '@/api/mentors';
+import { getBooking } from '@/api/bookings';
+import type { BookingRecord } from '@/api/bookings';
 import {
-  bookingRef,
   buildCalendarInvite,
   downloadTextFile,
   formatEuro,
   formatTicketDate,
-  readSelection,
   sessionRange,
-  sessionTotal,
 } from '@/lib/booking';
 
-/**
- * `/mentors/:mentorId/booked`: payment succeeded and the session is
- * on the student's dashboard.
- */
+/** Shows confirmation only from the student's persisted, successful booking. */
 export default function BookingConfirmedPage() {
-  const { user } = useAuth();
-  const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
-  const [mentor, setMentor] = useState<Mentor | null>(null);
-  const [selection, setSelection] = useState<{
-    service: MentorService;
-    date: string;
-    time: string;
-  } | null>(null);
-  const [ready, setReady] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [note, setNote] = useState('');
-  const [noteSent, setNoteSent] = useState(false);
+  const bookingId = searchParams.get('bookingId');
+  const [loaded, setLoaded] = useState<{
+    bookingId: string | null;
+    booking: BookingRecord | null;
+  }>({ bookingId: null, booking: null });
 
   useEffect(() => {
-    if (!mentorId) return;
     let cancelled = false;
-    getMentorById(mentorId).then((data) => {
-      if (cancelled) return;
-      setMentor(data);
-      setSelection(data ? readSelection(searchParams.toString(), data) : null);
-      setReady(true);
-    });
+    if (!bookingId) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () =>
+      getBooking(bookingId)
+        .then(({ booking: record }) => {
+          if (cancelled) return;
+          setLoaded({ bookingId, booking: record });
+          if (record.payment_status === 'pending') timer = setTimeout(refresh, 1500);
+        })
+        .catch(() => {
+          if (!cancelled) setLoaded({ bookingId, booking: null });
+        });
+    void refresh();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [mentorId, searchParams]);
+  }, [bookingId]);
 
+  const ready = !bookingId || loaded.bookingId === bookingId;
+  const booking = loaded.bookingId === bookingId ? loaded.booking : null;
   if (!ready) return <div className="min-h-screen bg-canvas" />;
-
-  if (!mentor || !selection) {
+  if (booking?.payment_status === 'pending') {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <NavBar variant="student" />
+        <p className="mx-auto max-w-lg px-6 py-20 text-center font-sans text-ink-soft">
+          Verifying your payment with Stripe…
+        </p>
+      </div>
+    );
+  }
+  if (!booking || booking.status !== 'confirmed' || booking.payment_status !== 'succeeded') {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
         <NavBar variant="student" />
         <div className="mx-auto flex max-w-lg flex-col gap-3 px-6 py-20">
           <p className="font-display text-3xl font-bold tracking-tight text-ink">
-            No booking to show
+            No confirmed booking to show
           </p>
           <Link to="/mentors" className="font-sans text-sm font-medium text-secondary">
             Find a mentor
@@ -68,24 +72,36 @@ export default function BookingConfirmedPage() {
     );
   }
 
-  const total = sessionTotal(selection.service.price);
-  const ref = bookingRef(mentor.id, selection.date, selection.time);
-  const first = mentor.name.split(' ')[0] ?? mentor.name;
-  const when = formatTicketDate(selection.date);
-  const range = sessionRange(selection.time, selection.service.duration);
+  const confirmedBooking = booking;
+  const startsAt = new Date(confirmedBooking.scheduled_at);
+  const date = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Lisbon',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(startsAt);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Lisbon',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(startsAt);
+  const when = formatTicketDate(date);
+  const duration = `${confirmedBooking.duration_minutes} min`;
+  const range = sessionRange(time, duration);
+  const ref = confirmedBooking.id;
 
   function downloadReceipt() {
     downloadTextFile(
       `${ref}.txt`,
       [
-        'FEUP Connect — receipt',
-        `Booking ref ${ref}`,
-        `${selection!.service.title} with ${mentor!.name}`,
+        'FEUP Connect — Stripe test payment receipt',
+        `Booking ref ${confirmedBooking.id}`,
+        `${confirmedBooking.service_title} with ${confirmedBooking.mentor_name}`,
         `${when} · ${range}`,
-        'Format: Google Meet',
-        `Amount paid: ${formatEuro(total)}`,
-        'Visa •••• 4242',
-        'Prototype receipt. No payment was captured.',
+        `Amount: ${formatEuro(confirmedBooking.amount_cents / 100)}`,
+        `Booking reference: ${ref}`,
+        'Payment processed in Stripe test mode.',
       ].join('\n'),
       'text/plain',
     );
@@ -93,13 +109,13 @@ export default function BookingConfirmedPage() {
 
   function addToCalendar() {
     downloadTextFile(
-      `${ref}.ics`,
+      `${confirmedBooking.id}.ics`,
       buildCalendarInvite({
-        title: `${selection!.service.title} with ${mentor!.name}`,
-        date: selection!.date,
-        start: selection!.time,
-        duration: selection!.service.duration,
-        description: `Booking ref ${ref}. Google Meet link arrives by email.`,
+        title: `${confirmedBooking.service_title} with ${confirmedBooking.mentor_name}`,
+        date,
+        start: time,
+        duration,
+        description: `Booking ref ${confirmedBooking.id}. Meeting link is not yet provisioned.`,
       }),
       'text/calendar',
     );
@@ -116,36 +132,43 @@ export default function BookingConfirmedPage() {
           You&rsquo;re booked!
         </h1>
         <p className="max-w-xl text-center font-sans text-lg text-ink-soft">
-          Payment confirmed. Your receipt and calendar invite are on their way to
-          {user?.email ?? 'your email'}.
+          Your test payment was verified by Stripe and your booking is confirmed.
         </p>
-
         <article className="w-full overflow-hidden rounded-3xl border border-line bg-surface shadow-[0px_16px_40px_0px_rgba(13,43,36,0.1)]">
           <div className="flex items-center gap-4 bg-primary p-7">
-            <Avatar initials={mentor.initials} tone="accent" size="md" />
+            <Avatar
+              initials={booking.mentor_name
+                .split(/\s+/)
+                .map((part) => part[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
+              tone="accent"
+              size="md"
+            />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className="font-display text-[22px] font-semibold tracking-tight text-ink-inverse">
-                {selection.service.title} with {mentor.name}
+                {booking.service_title} with {booking.mentor_name}
               </p>
               <p className="font-sans text-sm text-primary-soft">
-                {mentor.headline.split('·')[0]?.trim()}
+                {booking.mentor_headline.split('·')[0]?.trim()}
               </p>
             </div>
             <span className="rounded-full bg-accent px-3 py-1.5 font-sans text-xs font-medium text-primary">
-              PAID
+              TEST PAID
             </span>
           </div>
           <div className="grid grid-cols-2 gap-4 p-7 sm:grid-cols-4">
             <TicketField label="Date" value={when} />
             <TicketField label="Time" value={range} />
             <TicketField label="Format" value="Google Meet" />
-            <TicketField label="Amount paid" value={formatEuro(total)} />
+            <TicketField label="Amount" value={formatEuro(booking.amount_cents / 100)} />
           </div>
           <div className="h-px bg-line" />
           <div className="flex flex-wrap items-center justify-between gap-3 px-7 py-4">
             <p className="inline-flex items-center gap-2 font-sans text-xs font-medium text-ink-muted">
               <ShieldCheck className="size-4" />
-              Booking ref {ref} · Visa •••• 4242
+              Booking {booking.id}
             </p>
             <button
               type="button"
@@ -156,16 +179,9 @@ export default function BookingConfirmedPage() {
             </button>
           </div>
         </article>
-
         <div className="grid w-full gap-3 sm:grid-cols-3">
-          <Button
-            type="button"
-            variant="blue"
-            fullWidth
-            onClick={() => setNoteOpen(true)}
-            icon={<ArrowRight className="size-4" />}
-          >
-            Message {first}
+          <Button type="button" variant="blue" fullWidth disabled>
+            Messaging unavailable
           </Button>
           <Button type="button" variant="outlined" fullWidth onClick={addToCalendar}>
             Add to calendar
@@ -177,52 +193,15 @@ export default function BookingConfirmedPage() {
             My sessions
           </Link>
         </div>
-
-        {noteOpen && (
-          <form
-            className="flex w-full flex-col gap-3 rounded-[20px] border border-line bg-surface p-6"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!note.trim()) return;
-              setNoteSent(true);
-            }}
-          >
-            {noteSent ? (
-              <p className="font-sans text-sm text-ink">
-                Sent to {first}. Chat stays open on your dashboard.
-              </p>
-            ) : (
-              <>
-                <Textarea
-                  label={`Note for ${first}`}
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="What do you want to cover in this session?"
-                  rows={4}
-                />
-                <Button type="submit" variant="primary">
-                  Send note
-                </Button>
-              </>
-            )}
-          </form>
-        )}
-
         <section className="flex w-full flex-col gap-3.5 rounded-[20px] bg-accent-soft p-7">
           <p className="inline-flex items-center gap-2 font-display text-lg font-semibold tracking-tight text-ink">
             <Sparkles className="size-5 text-accent-strong" />
-            Get the most out of your session
+            Booking saved
           </p>
-          {[
-            `Send ${first} a quick note with your goals (chat is now unlocked)`,
-            'Share your CV or GitHub link before the session',
-            'Join the Meet link 2 minutes early to test audio',
-          ].map((item) => (
-            <p key={item} className="inline-flex items-start gap-2.5 font-sans text-sm text-ink">
-              <Check className="mt-0.5 size-4 shrink-0" />
-              {item}
-            </p>
-          ))}
+          <p className="inline-flex items-start gap-2.5 font-sans text-sm text-ink">
+            <Check className="mt-0.5 size-4 shrink-0" />
+            This prototype does not send email, create a meeting link, or unlock chat.
+          </p>
         </section>
       </div>
     </div>

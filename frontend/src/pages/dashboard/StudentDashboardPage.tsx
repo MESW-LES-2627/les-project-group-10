@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Bookmark, Calendar, CheckCircle2, CreditCard } from 'lucide-react';
@@ -6,56 +6,40 @@ import { buttonVariants } from '@/components/ui';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { UpcomingSessionRow } from '@/components/dashboard/UpcomingSessionRow';
-import { getMentors } from '@/api/mentors';
+import { getUpcomingBookings } from '@/api/bookings';
+import type { BookingRecord } from '@/api/bookings';
 import { useAuth } from '@/auth/useAuth';
-import type { Mentor } from '@/api/mentors';
-import {
-  firstName,
-  formatEuro,
-  formatShortDate,
-  readStudentBookings,
-  sessionRange,
-} from '@/lib/booking';
-import type { StudentBooking } from '@/lib/booking';
+import { firstName, formatEuro, sessionRange } from '@/lib/booking';
 
-/**
- * `/dashboard`: the logged-in student's home. Lists only sessions
- * they have booked; every other section stays empty until there is data.
- */
+/** Reads confirmed sessions from the API so this view follows persisted state. */
 export default function StudentDashboardPage() {
   const { user } = useAuth();
-  const [mentors, setMentors] = useState<Mentor[]>([]);
-  const [bookings, setBookings] = useState<StudentBooking[]>([]);
+  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    getMentors().then((data) => {
-      if (!cancelled) {
-        setMentors(data);
-        setBookings(readStudentBookings());
-      }
-    });
+    getUpcomingBookings()
+      .then(({ bookings: records }) => {
+        if (!cancelled) setBookings(records);
+      })
+      .catch((error) => {
+        console.error('Could not load upcoming bookings:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const upcoming = useMemo(
-    () =>
-      bookings.flatMap((booking) => {
-        const mentor = mentors.find((item) => item.id === booking.mentorId);
-        const service = mentor?.services.find((item) => item.id === booking.serviceId);
-        if (!mentor || !service) return [];
-        return [{ booking, mentor, service }];
-      }),
-    [bookings, mentors],
-  );
-
-  const spent = upcoming.reduce((sum, item) => sum + item.booking.total, 0);
-  const welcome =
-    upcoming.length === 0
+  const spent = bookings.reduce((sum, booking) => sum + booking.amount_cents / 100, 0);
+  const welcome = loading
+    ? 'Loading your sessions…'
+    : bookings.length === 0
       ? 'No sessions booked yet. Find a mentor when you’re ready.'
-      : `You have ${upcoming.length} upcoming ${upcoming.length === 1 ? 'session' : 'sessions'}.`;
+      : `You have ${bookings.length} upcoming ${bookings.length === 1 ? 'session' : 'sessions'}.`;
 
   return (
     <DashboardLayout title="Student dashboard">
@@ -76,9 +60,8 @@ export default function StudentDashboardPage() {
               <ArrowRight className="size-4" />
             </Link>
           </div>
-
           <div className="flex w-full flex-wrap gap-5">
-            <StatCard icon={Calendar} value={String(upcoming.length)} label="Upcoming sessions" />
+            <StatCard icon={Calendar} value={String(bookings.length)} label="Upcoming sessions" />
             <StatCard
               icon={CheckCircle2}
               iconClassName="flex size-10 items-center justify-center rounded-[10px] bg-secondary-soft"
@@ -95,10 +78,9 @@ export default function StudentDashboardPage() {
               icon={CreditCard}
               iconClassName="flex size-10 items-center justify-center rounded-[10px] bg-accent-soft"
               value={formatEuro(spent)}
-              label="Spent on learning"
+              label="Upcoming total"
             />
           </div>
-
           <section
             id="sessions"
             className="flex w-full scroll-mt-24 flex-col gap-5 rounded-[20px] border border-line bg-surface p-7"
@@ -106,7 +88,9 @@ export default function StudentDashboardPage() {
             <p className="font-display text-2xl font-semibold tracking-tight text-ink">
               Upcoming sessions
             </p>
-            {upcoming.length === 0 ? (
+            {loading ? (
+              <p className="font-sans text-sm text-ink-muted">Loading…</p>
+            ) : bookings.length === 0 ? (
               <EmptyState
                 title="No upcoming sessions"
                 body="Book a session with a mentor and it will show up here."
@@ -120,21 +104,40 @@ export default function StudentDashboardPage() {
                 }
               />
             ) : (
-              upcoming.map(({ booking, mentor, service }) => (
-                <UpcomingSessionRow
-                  key={booking.id}
-                  mentorId={mentor.id}
-                  initials={mentor.initials}
-                  avatarTone={mentor.avatarTone}
-                  mentorName={mentor.name}
-                  service={service.title}
-                  time={`${formatShortDate(booking.date)} · ${sessionRange(booking.time, service.duration)}`}
-                  action="details"
-                />
-              ))
+              bookings.map((booking) => {
+                const startsAt = new Date(booking.scheduled_at);
+                const date = new Intl.DateTimeFormat('en-GB', {
+                  timeZone: 'Europe/Lisbon',
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                }).format(startsAt);
+                const time = new Intl.DateTimeFormat('en-GB', {
+                  timeZone: 'Europe/Lisbon',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hourCycle: 'h23',
+                }).format(startsAt);
+                return (
+                  <UpcomingSessionRow
+                    key={booking.id}
+                    mentorId={booking.mentor_id}
+                    initials={booking.mentor_name
+                      .split(/\s+/)
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
+                    avatarTone="primary"
+                    mentorName={booking.mentor_name}
+                    service={booking.service_title}
+                    time={`${date} · ${sessionRange(time, `${booking.duration_minutes} min`)}`}
+                    action="details"
+                  />
+                );
+              })
             )}
           </section>
-
           <section
             id="saved"
             className="flex w-full scroll-mt-24 flex-col gap-5 rounded-[20px] border border-line bg-surface p-7"
@@ -144,7 +147,6 @@ export default function StudentDashboardPage() {
             </p>
             <EmptyState title="No saved mentors" body="Mentors you save will be listed here." />
           </section>
-
           <section className="flex w-full flex-col gap-5 rounded-[20px] border border-line bg-surface p-7">
             <p className="font-display text-2xl font-semibold tracking-tight text-ink">
               Past sessions
@@ -152,7 +154,6 @@ export default function StudentDashboardPage() {
             <EmptyState title="No past sessions" body="Finished sessions will show up here." />
           </section>
         </div>
-
         <div className="flex w-full shrink-0 flex-col gap-5 lg:w-80">
           <section
             id="settings"
@@ -167,16 +168,12 @@ export default function StudentDashboardPage() {
               />
             </div>
           </section>
-
           <section
             id="messages"
             className="flex w-full scroll-mt-24 flex-col gap-5 rounded-[20px] border border-line bg-surface p-7"
           >
             <p className="font-display text-lg font-semibold tracking-tight text-ink">Messages</p>
-            <EmptyState
-              title="No messages"
-              body="Chat with a mentor unlocks after you book a session."
-            />
+            <EmptyState title="No messages" body="Chat is not yet available in this prototype." />
           </section>
         </div>
       </div>

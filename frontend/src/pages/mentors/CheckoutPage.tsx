@@ -1,118 +1,174 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import type { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
   Clock,
-  CreditCard,
-  Globe,
   GraduationCap,
   Lock,
-  Mail,
   ShieldCheck,
   Sparkles,
-  User,
   Video,
 } from 'lucide-react';
-import { Button, Checkbox, InfoNote, Input, Logo, SelectField } from '@/components/ui';
-import { Avatar } from '@/components/ui';
+import { Avatar, Button, InfoNote, Logo } from '@/components/ui';
 import { getMentorById } from '@/api/mentors';
-import { useAuth } from '@/auth/useAuth';
 import type { Mentor, MentorService } from '@/api/mentors';
+import { createStripeCheckout, getStripeConfig } from '@/api/bookings';
 import {
   PLATFORM_FEE,
-  bookingRef,
   formatEuro,
   formatLongDate,
   formatShortDate,
   readSelection,
-  saveStudentBooking,
   sessionRange,
   sessionTotal,
 } from '@/lib/booking';
-import clsx from 'clsx';
+import { useAuth } from '@/auth/useAuth';
 
-type PaymentMethod = 'card' | 'mbway' | 'apple';
-
-/**
- * `/mentors/:mentorId/checkout`: prototype payment for the session
- * chosen on the mentor profile.
- */
 export default function CheckoutPage() {
   const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [selection, setSelection] = useState<{
     service: MentorService;
     date: string;
     time: string;
   } | null>(null);
-  const [ready, setReady] = useState(false);
-  const [method, setMethod] = useState<PaymentMethod>('card');
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [clientSecret, setClientSecret] = useState('');
+  const [bookingId, setBookingId] = useState('');
+  const [error, setError] = useState('');
   const { user } = useAuth();
-  const [fullName, setFullName] = useState(user?.username ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242');
-  const [expiry, setExpiry] = useState('12 / 28');
-  const [cvc, setCvc] = useState('123');
-  const [nameOnCard, setNameOnCard] = useState(user?.username ?? '');
-  const [country, setCountry] = useState('Portugal');
-  const [saveCard, setSaveCard] = useState(true);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     if (!mentorId) return;
     let cancelled = false;
-    getMentorById(mentorId).then((data) => {
-      if (cancelled) return;
-      setMentor(data);
-      setSelection(data ? readSelection(searchParams.toString(), data) : null);
-      setReady(true);
-    });
+    Promise.all([getMentorById(mentorId), getStripeConfig()])
+      .then(([data, config]) => {
+        if (cancelled) return;
+        setMentor(data);
+        setSelection(data ? readSelection(searchParams.toString(), data) : null);
+        setStripePromise(
+          loadStripe(config.publishableKey, {
+            developerTools: { assistant: { enabled: false } },
+          }),
+        );
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : 'Checkout could not be loaded.');
+      });
     return () => {
       cancelled = true;
     };
   }, [mentorId, searchParams]);
 
-  if (!ready) {
-    return <div className="min-h-screen bg-canvas" />;
-  }
-
-  if (!mentor || !selection) {
-    return (
-      <div className="flex min-h-screen flex-col items-center bg-canvas px-6 py-20">
-        <p className="font-display text-3xl font-bold tracking-tight text-ink">
-          Choose a session first
-        </p>
-        <Link
-          to={mentor ? `/mentors/${mentor.id}` : '/mentors'}
-          className="mt-4 font-sans text-sm font-medium text-secondary"
-        >
-          Back to the mentor
-        </Link>
-      </div>
-    );
-  }
-
-  const total = sessionTotal(selection.service.price);
-  const query = searchParams.toString();
-
-  function handlePay(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!mentor || !selection) return;
-    const ref = bookingRef(mentor.id, selection.date, selection.time);
-    saveStudentBooking({
-      id: ref,
-      mentorId: mentor.id,
+  useEffect(() => {
+    if (!mentor || !selection || !user) return;
+    let cancelled = false;
+    createStripeCheckout({
       serviceId: selection.service.id,
       date: selection.date,
       time: selection.time,
-      total,
-      ref,
+      idempotencyKey,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setBookingId(result.bookingId);
+        setClientSecret(result.clientSecret);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : 'Checkout could not be started.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mentor, selection, user, idempotencyKey]);
+
+  if (!mentor || !selection) {
+    return <div className="min-h-screen bg-canvas" />;
+  }
+  const total = sessionTotal(selection.service.price);
+  const query = searchParams.toString();
+  if (error)
+    return (
+      <div className="mx-auto max-w-xl px-6 py-20 text-center font-sans text-danger" role="alert">
+        {error}
+      </div>
+    );
+  if (!stripePromise || !clientSecret || !bookingId)
+    return <div className="min-h-screen bg-canvas" />;
+
+  const options: StripeElementsOptions = {
+    clientSecret,
+    appearance: { theme: 'stripe', variables: { colorPrimary: '#0f766e', borderRadius: '10px' } },
+  };
+
+  return (
+    <Elements stripe={stripePromise} options={options}>
+      <CheckoutForm
+        mentor={mentor}
+        selection={selection}
+        query={query}
+        total={total}
+        bookingId={bookingId}
+        userName={user?.username ?? ''}
+        userEmail={user?.email ?? ''}
+      />
+    </Elements>
+  );
+}
+
+function CheckoutForm({
+  mentor,
+  selection,
+  query,
+  total,
+  bookingId,
+  userName,
+  userEmail,
+}: {
+  mentor: Mentor;
+  selection: { service: MentorService; date: string; time: string };
+  query: string;
+  total: number;
+  bookingId: string;
+  userName: string;
+  userEmail: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const returnUrl = `${window.location.origin}/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`;
+
+  async function handlePay(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!stripe || !elements || submitting) return;
+    setSubmitting(true);
+    setError('');
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: returnUrl,
+        payment_method_data: { billing_details: { name: userName, email: userEmail } },
+      },
+      redirect: 'if_required',
     });
-    navigate(`/mentors/${mentor.id}/booked?${query}`);
+    if (result.error) {
+      setError(result.error.message ?? 'Payment could not be completed. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+    navigate(`/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`);
   }
 
   return (
@@ -146,7 +202,6 @@ export default function CheckoutPage() {
           Secure checkout
         </p>
       </header>
-
       <form
         onSubmit={handlePay}
         className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 lg:flex-row lg:px-10"
@@ -168,130 +223,46 @@ export default function CheckoutPage() {
               {formatShortDate(selection.date)}.
             </p>
           </div>
-
           <InfoNote icon={<Sparkles className="size-5" />} tone="accent">
-            <span className="font-semibold">Prototype · Stripe test mode.</span> No real money is
-            charged. Use card 4242 4242 4242 4242, any future date and any CVC.
+            <span className="font-semibold">Stripe test mode.</span> This checkout uses Stripe test
+            credentials and does not move real money.
           </InfoNote>
-
           <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
             <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Contact details
+              Payment details
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Full name"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                leadingIcon={<User className="size-5" />}
-                required
-              />
-              <Input
-                label="Email for receipt"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                leadingIcon={<Mail className="size-5" />}
-                required
-              />
-            </div>
+            <p className="font-sans text-sm text-ink-soft">Paying as {userEmail}</p>
+            <PaymentElement
+              options={{
+                layout: 'tabs',
+                wallets: { applePay: 'auto', googlePay: 'auto', link: 'never' },
+                defaultValues: { billingDetails: { name: userName, email: userEmail } },
+                fields: { billingDetails: { name: 'never', email: 'never' } },
+              }}
+            />
           </section>
-
-          <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
-            <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Payment method
-            </h2>
-            <div className="grid grid-cols-3 gap-3">
-              <MethodButton
-                label="Card"
-                icon={<CreditCard className="size-5" />}
-                selected={method === 'card'}
-                onClick={() => setMethod('card')}
-              />
-              <MethodButton
-                label="MB WAY"
-                icon={<Globe className="size-5" />}
-                selected={method === 'mbway'}
-                onClick={() => setMethod('mbway')}
-              />
-              <MethodButton
-                label="Apple Pay"
-                icon={<Lock className="size-5" />}
-                selected={method === 'apple'}
-                onClick={() => setMethod('apple')}
-              />
-            </div>
-
-            {method === 'card' && (
-              <div className="flex flex-col gap-4">
-                <Input
-                  label="Card number"
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  leadingIcon={<CreditCard className="size-5" />}
-                  required
-                />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Expiry date"
-                    value={expiry}
-                    onChange={(event) => setExpiry(event.target.value)}
-                    leadingIcon={<Calendar className="size-5" />}
-                    required
-                  />
-                  <Input
-                    label="CVC"
-                    value={cvc}
-                    onChange={(event) => setCvc(event.target.value)}
-                    leadingIcon={<Lock className="size-5" />}
-                    required
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Name on card"
-                    value={nameOnCard}
-                    onChange={(event) => setNameOnCard(event.target.value)}
-                    leadingIcon={<User className="size-5" />}
-                    required
-                  />
-                  <SelectField
-                    label="Country"
-                    leadingIcon={<Globe className="size-5" />}
-                    options={['Portugal', 'Spain', 'France', 'Other']}
-                    value={country}
-                    onChange={setCountry}
-                  />
-                </div>
-                <Checkbox
-                  checked={saveCard}
-                  onChange={setSaveCard}
-                  label="Save this card for future bookings"
-                />
-              </div>
-            )}
-            {method === 'mbway' && (
-              <p className="font-sans text-sm text-ink-soft">
-                You&rsquo;ll confirm this payment in the MB WAY app. No charge is made in this
-                prototype.
-              </p>
-            )}
-            {method === 'apple' && (
-              <p className="font-sans text-sm text-ink-soft">
-                You&rsquo;ll confirm with Apple Pay. No charge is made in this prototype.
-              </p>
-            )}
-          </section>
-
-          <Button type="submit" variant="blue" fullWidth icon={<ArrowRight className="size-5" />}>
-            Pay {formatEuro(total)} and confirm booking
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-danger-soft px-4 py-3 font-sans text-sm text-danger"
+            >
+              {error}
+            </p>
+          )}
+          <Button
+            type="submit"
+            variant="blue"
+            fullWidth
+            disabled={!stripe || submitting}
+            icon={<ArrowRight className="size-5" />}
+          >
+            {submitting ? 'Processing payment…' : `Pay ${formatEuro(total)} and confirm booking`}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-center font-sans text-xs text-ink-muted">
             <Lock className="size-3.5" />
-            Payments processed by Stripe. FEUP Connect never stores your card details.
+            Payment is processed in Stripe test mode.
           </p>
         </div>
-
         <aside className="flex h-fit w-full shrink-0 flex-col gap-4 rounded-[20px] border border-line bg-surface p-7 lg:w-95">
           <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
             Order summary
@@ -318,12 +289,12 @@ export default function CheckoutPage() {
           <SummaryRow
             icon={<Clock className="size-4" />}
             title={sessionRange(selection.time, selection.service.duration)}
-            detail={`Lisbon time (WEST) · ${selection.service.duration}`}
+            detail={`Lisbon time · ${selection.service.duration}`}
           />
           <SummaryRow
             icon={<Video className="size-4" />}
             title="Google Meet"
-            detail="Link shared after payment"
+            detail="Meeting link is not yet provisioned"
           />
           <div className="h-px bg-line" />
           <div className="flex items-center justify-between font-sans text-sm text-ink-soft">
@@ -335,58 +306,14 @@ export default function CheckoutPage() {
             <span>{formatEuro(PLATFORM_FEE)}</span>
           </div>
           <div className="flex items-center justify-between font-sans text-base font-semibold text-ink">
-            <span>Total due today</span>
+            <span>Total</span>
             <span className="font-display text-2xl font-bold tracking-tight">
               {formatEuro(total)}
             </span>
           </div>
-          <div className="flex flex-col gap-2 rounded-2xl bg-primary-soft p-4">
-            <p className="font-sans text-sm font-semibold text-primary">What happens next</p>
-            {[
-              'Your payment is verified instantly',
-              `Chat with ${mentor.name.split(' ')[0]} unlocks`,
-              'Meet link & calendar invite go to your email',
-            ].map((item) => (
-              <p key={item} className="font-sans text-sm text-ink">
-                ✓ {item}
-              </p>
-            ))}
-          </div>
-          <p className="font-sans text-xs text-ink-muted">
-            Free cancellation up to 24h before the session. After that, the session fee is
-            non-refundable.
-          </p>
         </aside>
       </form>
     </div>
-  );
-}
-
-function MethodButton({
-  label,
-  icon,
-  selected,
-  onClick,
-}: {
-  label: string;
-  icon: ReactNode;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={clsx(
-        'flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl border font-sans text-sm font-medium',
-        selected
-          ? 'border-primary bg-primary-soft text-ink'
-          : 'border-line bg-surface text-ink-soft',
-      )}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 

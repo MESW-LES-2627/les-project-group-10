@@ -13,13 +13,14 @@ const steps: { icon: LucideIcon; number: string; title: string; description: str
     icon: CreditCard,
     number: '02',
     title: 'Book & pay securely',
-    description: 'Pick a time that works, pay through Stripe, and get instant confirmation.',
+    description: 'Pick a time, complete a mock payment, and get an instant booking confirmation.',
   },
   {
     icon: Video,
     number: '03',
     title: 'Meet & learn',
-    description: 'Join by video call. Chat unlocks the moment your payment is confirmed.',
+    description:
+      'Prepare for your session. Meeting links and chat are not yet available in this prototype.',
   },
 ];
 

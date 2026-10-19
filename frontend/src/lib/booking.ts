@@ -2,18 +2,6 @@ import type { Mentor, MentorService } from '@/api/mentors';
 
 export const PLATFORM_FEE = 1.5;
 
-const BOOKINGS_KEY = 'feup-connect-bookings';
-
-export interface StudentBooking {
-  id: string;
-  mentorId: string;
-  serviceId: string;
-  date: string;
-  time: string;
-  total: number;
-  ref: string;
-}
-
 export interface BookingSelection {
   serviceId: string;
   date: string;
@@ -116,13 +104,6 @@ export function dayNumber(isoDate: string) {
   return atNoon(isoDate).getDate();
 }
 
-export function bookingRef(mentorId: string, date: string, time: string) {
-  const raw = `${mentorId}|${date}|${time}`;
-  let hash = 0;
-  for (const char of raw) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return `FC-2026-${String(10000 + (hash % 90000))}`;
-}
-
 export function selectionSearch(selection: BookingSelection) {
   const params = new URLSearchParams({
     service: selection.serviceId,
@@ -147,22 +128,6 @@ export function readSelection(
 
 export function sessionTotal(price: number) {
   return price + PLATFORM_FEE;
-}
-
-export function readStudentBookings(): StudentBooking[] {
-  try {
-    const raw = localStorage.getItem(BOOKINGS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StudentBooking[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStudentBooking(booking: StudentBooking) {
-  const next = [booking, ...readStudentBookings().filter((item) => item.id !== booking.id)];
-  localStorage.setItem(BOOKINGS_KEY, JSON.stringify(next));
 }
 
 export function downloadTextFile(filename: string, contents: string, type: string) {
