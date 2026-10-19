@@ -4,10 +4,15 @@ import { requireAuth } from './middleware/requireAuth.js';
 import { findRoles } from './modules/auth/auth.queries.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { mentorsRouter } from './modules/mentors/mentors.routes.js';
-import { bookingsRouter } from './modules/bookings/bookings.routes.js';
+import { bookingsRouter, stripeWebhookRouter } from './modules/bookings/bookings.routes.js';
 
 export const app = express();
 
+app.use(
+  '/api/bookings/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookRouter,
+);
 app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
