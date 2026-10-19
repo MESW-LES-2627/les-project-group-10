@@ -10,36 +10,30 @@ import {
   Globe,
   GraduationCap,
   Lock,
-  Mail,
   ShieldCheck,
   Sparkles,
   User,
+  Mail,
   Video,
 } from 'lucide-react';
-import { Button, Checkbox, InfoNote, Input, Logo, SelectField } from '@/components/ui';
-import { Avatar } from '@/components/ui';
+import { Avatar, Button, InfoNote, Input, Logo, SelectField } from '@/components/ui';
 import { getMentorById } from '@/api/mentors';
-import { useAuth } from '@/auth/useAuth';
 import type { Mentor, MentorService } from '@/api/mentors';
+import { createMockCheckout } from '@/api/bookings';
+import type { MockPaymentMethod, MockPaymentOutcome } from '@/api/bookings';
 import {
   PLATFORM_FEE,
-  bookingRef,
   formatEuro,
   formatLongDate,
   formatShortDate,
   readSelection,
-  saveStudentBooking,
   sessionRange,
   sessionTotal,
 } from '@/lib/booking';
 import clsx from 'clsx';
+import { useAuth } from '@/auth/useAuth';
 
-type PaymentMethod = 'card' | 'mbway' | 'apple';
-
-/**
- * `/mentors/:mentorId/checkout`: prototype payment for the session
- * chosen on the mentor profile.
- */
+/** Collects only the mock decision; payment details never enter the application. */
 export default function CheckoutPage() {
   const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
@@ -51,7 +45,8 @@ export default function CheckoutPage() {
     time: string;
   } | null>(null);
   const [ready, setReady] = useState(false);
-  const [method, setMethod] = useState<PaymentMethod>('card');
+  const [method, setMethod] = useState<MockPaymentMethod>('card');
+  const [outcome, setOutcome] = useState<MockPaymentOutcome>('approved');
   const { user } = useAuth();
   const [fullName, setFullName] = useState(user?.username ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -60,7 +55,9 @@ export default function CheckoutPage() {
   const [cvc, setCvc] = useState('123');
   const [nameOnCard, setNameOnCard] = useState(user?.username ?? '');
   const [country, setCountry] = useState('Portugal');
-  const [saveCard, setSaveCard] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     if (!mentorId) return;
@@ -76,10 +73,7 @@ export default function CheckoutPage() {
     };
   }, [mentorId, searchParams]);
 
-  if (!ready) {
-    return <div className="min-h-screen bg-canvas" />;
-  }
-
+  if (!ready) return <div className="min-h-screen bg-canvas" />;
   if (!mentor || !selection) {
     return (
       <div className="flex min-h-screen flex-col items-center bg-canvas px-6 py-20">
@@ -99,20 +93,37 @@ export default function CheckoutPage() {
   const total = sessionTotal(selection.service.price);
   const query = searchParams.toString();
 
-  function handlePay(event: FormEvent<HTMLFormElement>) {
+  async function handlePay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!mentor || !selection) return;
-    const ref = bookingRef(mentor.id, selection.date, selection.time);
-    saveStudentBooking({
-      id: ref,
-      mentorId: mentor.id,
-      serviceId: selection.service.id,
-      date: selection.date,
-      time: selection.time,
-      total,
-      ref,
-    });
-    navigate(`/mentors/${mentor.id}/booked?${query}`);
+    if (!mentor || !selection || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const { booking } = await createMockCheckout({
+        serviceId: selection.service.id,
+        date: selection.date,
+        time: selection.time,
+        paymentMethod: method,
+        outcome,
+        idempotencyKey,
+      });
+      if (booking.payment_status === 'succeeded' && booking.status === 'confirmed') {
+        navigate(`/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(booking.id)}`);
+      } else {
+        setError(
+          'The mock payment was declined. Your booking was not confirmed. Choose an approved outcome or try again.',
+        );
+        setIdempotencyKey(crypto.randomUUID());
+      }
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Checkout could not be completed. Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -168,10 +179,10 @@ export default function CheckoutPage() {
               {formatShortDate(selection.date)}.
             </p>
           </div>
-
           <InfoNote icon={<Sparkles className="size-5" />} tone="accent">
-            <span className="font-semibold">Prototype · Stripe test mode.</span> No real money is
-            charged. Use card 4242 4242 4242 4242, any future date and any CVC.
+            <span className="font-semibold">Mock checkout.</span> Card and contact fields are
+            illustrative only. They are not sent to a payment provider or saved; no real payment is
+            made.
           </InfoNote>
 
           <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
@@ -195,6 +206,9 @@ export default function CheckoutPage() {
                 required
               />
             </div>
+            <p className="font-sans text-xs text-ink-muted">
+              This prototype does not send email receipts.
+            </p>
           </section>
 
           <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
@@ -210,18 +224,20 @@ export default function CheckoutPage() {
               />
               <MethodButton
                 label="MB WAY"
-                icon={<Globe className="size-5" />}
+                icon={<span aria-hidden>◎</span>}
                 selected={method === 'mbway'}
                 onClick={() => setMethod('mbway')}
               />
               <MethodButton
                 label="Apple Pay"
-                icon={<Lock className="size-5" />}
+                icon={<span aria-hidden>●</span>}
                 selected={method === 'apple'}
                 onClick={() => setMethod('apple')}
               />
             </div>
-
+            <p className="font-sans text-sm text-ink-soft">
+              Choose a method to record on the mock payment. No provider is contacted.
+            </p>
             {method === 'card' && (
               <div className="flex flex-col gap-4">
                 <Input
@@ -263,32 +279,70 @@ export default function CheckoutPage() {
                     onChange={setCountry}
                   />
                 </div>
-                <Checkbox
-                  checked={saveCard}
-                  onChange={setSaveCard}
-                  label="Save this card for future bookings"
-                />
               </div>
             )}
             {method === 'mbway' && (
               <p className="font-sans text-sm text-ink-soft">
-                You&rsquo;ll confirm this payment in the MB WAY app. No charge is made in this
-                prototype.
+                MB WAY is simulated here. Choosing “approved” or “declined” below controls the
+                result; no app or bank is contacted.
               </p>
             )}
             {method === 'apple' && (
               <p className="font-sans text-sm text-ink-soft">
-                You&rsquo;ll confirm with Apple Pay. No charge is made in this prototype.
+                Apple Pay is a visual mock option only. No wallet is opened or charged.
               </p>
             )}
           </section>
 
-          <Button type="submit" variant="blue" fullWidth icon={<ArrowRight className="size-5" />}>
-            Pay {formatEuro(total)} and confirm booking
+          <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
+            <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
+              Simulated payment result
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {(['approved', 'declined'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={outcome === value}
+                  onClick={() => setOutcome(value)}
+                  className={clsx(
+                    'rounded-xl border px-4 py-3 text-left font-sans text-sm font-medium capitalize',
+                    outcome === value
+                      ? 'border-primary bg-primary-soft text-ink'
+                      : 'border-line bg-surface text-ink-soft',
+                  )}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+            <p className="font-sans text-xs text-ink-muted">
+              This lets you experience both the successful booking and declined-payment paths.
+            </p>
+          </section>
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-danger-soft px-4 py-3 font-sans text-sm text-danger"
+            >
+              {error}
+            </p>
+          )}
+          <Button
+            type="submit"
+            variant="blue"
+            fullWidth
+            disabled={submitting}
+            icon={<ArrowRight className="size-5" />}
+          >
+            {submitting
+              ? 'Processing mock payment…'
+              : `Pay ${formatEuro(total)} and confirm booking`}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-center font-sans text-xs text-ink-muted">
             <Lock className="size-3.5" />
-            Payments processed by Stripe. FEUP Connect never stores your card details.
+            Internal simulation only · no card data or money is sent anywhere.
           </p>
         </div>
 
@@ -318,12 +372,12 @@ export default function CheckoutPage() {
           <SummaryRow
             icon={<Clock className="size-4" />}
             title={sessionRange(selection.time, selection.service.duration)}
-            detail={`Lisbon time (WEST) · ${selection.service.duration}`}
+            detail={`Lisbon time · ${selection.service.duration}`}
           />
           <SummaryRow
             icon={<Video className="size-4" />}
             title="Google Meet"
-            detail="Link shared after payment"
+            detail="Meeting link is not yet provisioned"
           />
           <div className="h-px bg-line" />
           <div className="flex items-center justify-between font-sans text-sm text-ink-soft">
@@ -335,27 +389,11 @@ export default function CheckoutPage() {
             <span>{formatEuro(PLATFORM_FEE)}</span>
           </div>
           <div className="flex items-center justify-between font-sans text-base font-semibold text-ink">
-            <span>Total due today</span>
+            <span>Total</span>
             <span className="font-display text-2xl font-bold tracking-tight">
               {formatEuro(total)}
             </span>
           </div>
-          <div className="flex flex-col gap-2 rounded-2xl bg-primary-soft p-4">
-            <p className="font-sans text-sm font-semibold text-primary">What happens next</p>
-            {[
-              'Your payment is verified instantly',
-              `Chat with ${mentor.name.split(' ')[0]} unlocks`,
-              'Meet link & calendar invite go to your email',
-            ].map((item) => (
-              <p key={item} className="font-sans text-sm text-ink">
-                ✓ {item}
-              </p>
-            ))}
-          </div>
-          <p className="font-sans text-xs text-ink-muted">
-            Free cancellation up to 24h before the session. After that, the session fee is
-            non-refundable.
-          </p>
         </aside>
       </form>
     </div>
@@ -376,6 +414,7 @@ function MethodButton({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onClick}
       className={clsx(
         'flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl border font-sans text-sm font-medium',

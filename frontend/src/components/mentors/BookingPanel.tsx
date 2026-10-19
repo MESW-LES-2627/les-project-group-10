@@ -197,7 +197,7 @@ export function BookingPanel({
         Continue to payment
       </Button>
       <p className="text-center font-sans text-xs text-ink-muted">
-        Secure payment via Stripe. Free cancellation up to 24h before.
+        Mock payment only. No real payment is taken.
       </p>
     </aside>
   );
