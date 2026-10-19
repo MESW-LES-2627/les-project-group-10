@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Check, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import { Avatar, Button, buttonVariants } from '@/components/ui';
-import { NavBar } from '@/components/layout/NavBar';
+import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { getBooking } from '@/api/bookings';
 import type { BookingRecord } from '@/api/bookings';
 import {
@@ -45,30 +45,28 @@ export default function BookingConfirmedPage() {
 
   const ready = !bookingId || loaded.bookingId === bookingId;
   const booking = loaded.bookingId === bookingId ? loaded.booking : null;
-  if (!ready) return <div className="min-h-screen bg-canvas" />;
+  if (!ready) return <DashboardLayout title="Booking confirmed">{null}</DashboardLayout>;
   if (booking?.payment_status === 'pending') {
     return (
-      <div className="min-h-screen bg-canvas">
-        <NavBar variant="student" />
-        <p className="mx-auto max-w-lg px-6 py-20 text-center font-sans text-ink-soft">
+      <DashboardLayout title="Booking confirmed">
+        <p className="mx-auto max-w-lg px-4 py-16 text-center font-sans text-ink-soft lg:px-8">
           Verifying your payment with Stripe…
         </p>
-      </div>
+      </DashboardLayout>
     );
   }
   if (!booking || booking.status !== 'confirmed' || booking.payment_status !== 'succeeded') {
     return (
-      <div className="flex min-h-screen flex-col bg-canvas">
-        <NavBar variant="student" />
-        <div className="mx-auto flex max-w-lg flex-col gap-3 px-6 py-20">
+      <DashboardLayout title="Booking confirmed">
+        <div className="mx-auto flex max-w-lg flex-col gap-3 px-4 py-16 lg:px-8">
           <p className="font-display text-3xl font-bold tracking-tight text-ink">
             No confirmed booking to show
           </p>
-          <Link to="/mentors" className="font-sans text-sm font-medium text-secondary">
+          <Link to="/dashboard/mentors" className="font-sans text-sm font-medium text-secondary">
             Find a mentor
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -122,9 +120,8 @@ export default function BookingConfirmedPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-canvas">
-      <NavBar variant="student" />
-      <div className="flex w-full max-w-180 flex-col items-center gap-7 px-6 pb-24 pt-16">
+    <DashboardLayout title="Booking confirmed">
+      <div className="mx-auto flex w-full max-w-180 flex-col items-center gap-7 px-4 py-8 lg:px-8">
         <span className="flex size-20 items-center justify-center rounded-full bg-success-soft text-success">
           <CheckCircle2 className="size-10" />
         </span>
@@ -204,7 +201,7 @@ export default function BookingConfirmedPage() {
           </p>
         </section>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

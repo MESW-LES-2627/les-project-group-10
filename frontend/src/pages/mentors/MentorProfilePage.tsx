@@ -14,8 +14,8 @@ import {
   Video,
 } from 'lucide-react';
 import { Avatar, buttonVariants } from '@/components/ui';
-import { NavBar } from '@/components/layout/NavBar';
 import { BookingPanel } from '@/components/mentors/BookingPanel';
+import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { getMentorById } from '@/api/mentors';
 import { useAuth } from '@/auth/useAuth';
 import type { Mentor } from '@/api/mentors';
@@ -97,9 +97,8 @@ export default function MentorProfilePage() {
 
   if (missing) {
     return (
-      <div className="flex min-h-screen w-full flex-col bg-canvas">
-        <NavBar variant="student" />
-        <div className="mx-auto flex max-w-lg flex-col items-start gap-4 px-6 py-20">
+      <DashboardLayout title="Mentor profile">
+        <div className="mx-auto flex max-w-lg flex-col items-start gap-4 px-4 py-16 lg:px-8">
           <h1 className="font-display text-4xl font-bold tracking-tight text-ink">
             Mentor not found
           </h1>
@@ -107,20 +106,16 @@ export default function MentorProfilePage() {
             Back to search
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!mentor) {
-    return (
-      <div className="flex min-h-screen w-full flex-col bg-canvas">
-        <NavBar variant="student" />
-      </div>
-    );
+    return <DashboardLayout title="Mentor profile">{null}</DashboardLayout>;
   }
 
   const service = mentor.services.find((item) => item.id === serviceId) ?? mentor.services[0];
-  if (!service) return null;
+  if (!service) return <DashboardLayout title={mentor.name}>{null}</DashboardLayout>;
   const visiblePosts = showAllPosts ? mentor.posts : mentor.posts.slice(0, 2);
   const subject = mentor.subjects[0] ?? 'Mentoring';
   const isOwner = user?.id === mentor.id;
@@ -132,10 +127,8 @@ export default function MentorProfilePage() {
   }
 
   return (
-    <div className="flex w-full flex-col items-center bg-canvas">
-      <NavBar variant="student" />
-
-      <div className="flex w-full flex-col gap-6 px-6 pb-24 pt-8 lg:px-30">
+    <DashboardLayout title={mentor.name}>
+      <div className="flex w-full flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8">
         <div className="flex flex-wrap items-center gap-2 font-sans text-sm text-ink-muted">
           <Link
             to="/dashboard/mentors"
@@ -456,6 +449,6 @@ export default function MentorProfilePage() {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

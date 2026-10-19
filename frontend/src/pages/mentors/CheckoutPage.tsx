@@ -15,7 +15,8 @@ import {
   Sparkles,
   Video,
 } from 'lucide-react';
-import { Avatar, Button, InfoNote, Logo } from '@/components/ui';
+import { Avatar, Button, InfoNote } from '@/components/ui';
+import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { getMentorById } from '@/api/mentors';
 import type { Mentor, MentorService } from '@/api/mentors';
 import { createStripeCheckout, getStripeConfig } from '@/api/bookings';
@@ -93,18 +94,23 @@ export default function CheckoutPage() {
   }, [mentor, selection, user, idempotencyKey]);
 
   if (!mentor || !selection) {
-    return <div className="min-h-screen bg-canvas" />;
+    return <DashboardLayout title="Checkout">{null}</DashboardLayout>;
   }
   const total = sessionTotal(selection.service.price);
   const query = searchParams.toString();
   if (error)
     return (
-      <div className="mx-auto max-w-xl px-6 py-20 text-center font-sans text-danger" role="alert">
-        {error}
-      </div>
+      <DashboardLayout title="Checkout">
+        <div
+          className="mx-auto max-w-xl px-4 py-16 text-center font-sans text-danger lg:px-8"
+          role="alert"
+        >
+          {error}
+        </div>
+      </DashboardLayout>
     );
   if (!stripePromise || !clientSecret || !bookingId)
-    return <div className="min-h-screen bg-canvas" />;
+    return <DashboardLayout title="Checkout">{null}</DashboardLayout>;
 
   const options: StripeElementsOptions = {
     clientSecret,
@@ -112,17 +118,19 @@ export default function CheckoutPage() {
   };
 
   return (
-    <Elements stripe={stripePromise} options={options}>
-      <CheckoutForm
-        mentor={mentor}
-        selection={selection}
-        query={query}
-        total={total}
-        bookingId={bookingId}
-        userName={user?.username ?? ''}
-        userEmail={user?.email ?? ''}
-      />
-    </Elements>
+    <DashboardLayout title="Checkout">
+      <Elements stripe={stripePromise} options={options}>
+        <CheckoutForm
+          mentor={mentor}
+          selection={selection}
+          query={query}
+          total={total}
+          bookingId={bookingId}
+          userName={user?.username ?? ''}
+          userEmail={user?.email ?? ''}
+        />
+      </Elements>
+    </DashboardLayout>
   );
 }
 
@@ -172,10 +180,9 @@ function CheckoutForm({
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-canvas">
-      <header className="flex h-22 w-full items-center justify-between border-b border-line px-6 lg:px-30">
-        <Logo />
-        <ol className="hidden items-center gap-3 font-sans text-sm font-medium sm:flex">
+    <div className="flex w-full flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <ol className="flex flex-wrap items-center gap-3 font-sans text-sm font-medium">
           <li className="inline-flex items-center gap-2 text-ink">
             <span className="flex size-6 items-center justify-center rounded-full bg-primary text-ink-inverse">
               <ShieldCheck className="size-3.5" />
@@ -201,11 +208,8 @@ function CheckoutForm({
           <Lock className="size-4" />
           Secure checkout
         </p>
-      </header>
-      <form
-        onSubmit={handlePay}
-        className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 lg:flex-row lg:px-10"
-      >
+      </div>
+      <form onSubmit={handlePay} className="flex w-full flex-col gap-8 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <Link
             to={`/mentors/${mentor.id}?${query}`}

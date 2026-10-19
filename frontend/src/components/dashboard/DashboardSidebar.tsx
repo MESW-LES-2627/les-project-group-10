@@ -26,6 +26,7 @@ function isActiveItem(href: string | undefined, pathname: string, hash: string) 
   const [path, itemHash] = href.split('#');
   if (itemHash) return pathname === path && hash === `#${itemHash}`;
   if (path === '/dashboard') return pathname === '/dashboard' && hash === '';
+  if (path === '/dashboard/mentors' && pathname.startsWith('/mentors/')) return true;
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 

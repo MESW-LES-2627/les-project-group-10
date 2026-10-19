@@ -54,7 +54,7 @@ export function BookingPanel({
   return (
     <aside
       id="book"
-      className="flex w-full shrink-0 flex-col gap-5 rounded-[20px] border border-line bg-surface p-6 lg:sticky lg:top-6 lg:w-95"
+      className="flex w-full shrink-0 flex-col gap-5 rounded-[20px] border border-line bg-surface p-6 lg:sticky lg:top-24 lg:w-95"
     >
       <p className="font-display text-2xl font-semibold tracking-tight text-ink">Book a session</p>
 
