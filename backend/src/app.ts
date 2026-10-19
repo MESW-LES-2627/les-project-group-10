@@ -4,6 +4,7 @@ import { requireAuth } from './middleware/requireAuth.js';
 import { findRoles } from './modules/auth/auth.queries.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { mentorsRouter } from './modules/mentors/mentors.routes.js';
+import { bookingsRouter } from './modules/bookings/bookings.routes.js';
 
 export const app = express();
 
@@ -14,6 +15,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/mentors', mentorsRouter);
+app.use('/api/bookings', bookingsRouter);
 
 app.get('/api/me', requireAuth, async (_req, res) => {
   const roles = await findRoles(res.locals.user.id);

@@ -123,6 +123,22 @@ WHERE m.user_id = v.user_id::uuid;
 UPDATE mentor SET onboarding_finished = true
 WHERE user_id::text LIKE '10000000-0000-0000-0000-%';
 
+-- Seed bookable times separately so rerunning the seed adds only new future slots.
+INSERT INTO mentor_availability_slot (mentor_id, starts_at)
+SELECT m.user_id,
+       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon'
+FROM mentor m
+JOIN "user" u ON u.id = m.user_id
+CROSS JOIN LATERAL generate_series(
+  current_date + 1,
+  current_date + 30,
+  interval '1 day'
+) AS days(slot_day)
+CROSS JOIN (VALUES (TIME '09:00'), (TIME '11:00'), (TIME '14:00'), (TIME '16:00')) AS times(start_time)
+WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
+  AND EXTRACT(ISODOW FROM slot_day) BETWEEN 1 AND 5
+ON CONFLICT (mentor_id, starts_at) DO NOTHING;
+
 -- ---------------------------------------------------------------------------
 -- Mentor <-> category
 -- ---------------------------------------------------------------------------
@@ -206,22 +222,22 @@ ON CONFLICT DO NOTHING;
 -- and payouts that are both pending and paid.
 -- ---------------------------------------------------------------------------
 
-INSERT INTO payment (id, booking_id, stripe_session_id, amount_cents, status, payout_status,
+INSERT INTO payment (id, booking_id, amount_cents, status, payout_status,
                      paid_out_at, payout_reference, created_at)
-SELECT v.id::uuid, v.booking_id::uuid, v.stripe_session_id, v.amount_cents, v.status, v.payout_status,
+SELECT v.id::uuid, v.booking_id::uuid, v.amount_cents, v.status, v.payout_status,
        now() - make_interval(days => v.paid_out_days_ago),   -- NULL when paid_out_days_ago is NULL
        v.payout_reference,
        now() - make_interval(days => v.created_days_ago)
 FROM (VALUES
-  -- id, booking, stripe session, amount, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago
-  ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'cs_test_seed_0001', 1500, 'succeeded', 'paid',    8,    'SEED-TRANSFER-0001', 14),
-  ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', 'cs_test_seed_0002', 4000, 'succeeded', 'pending', NULL, NULL,                9),
-  ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000003', 'cs_test_seed_0003', 3000, 'succeeded', 'pending', NULL, NULL,                3),
-  ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000004', 'cs_test_seed_0004', 3500, 'succeeded', 'pending', NULL, NULL,                2),
-  ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000005', 'cs_test_seed_0005', 1800, 'failed',    'pending', NULL, NULL,                1),  -- first attempt declined
-  ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000005', 'cs_test_seed_0006', 1800, 'pending',   'pending', NULL, NULL,                0),  -- retry in progress
-  ('40000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000006', 'cs_test_seed_0007', 2800, 'failed',    'pending', NULL, NULL,                6),
-  ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000007', 'cs_test_seed_0008', 1500, 'succeeded', 'pending', NULL, NULL,                5),
-  ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000008', 'cs_test_seed_0009', 2500, 'succeeded', 'pending', NULL, NULL,                1)
-) AS v(id, booking_id, stripe_session_id, amount_cents, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago)
+  -- id, booking, amount, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago
+  ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 1500, 'succeeded', 'paid',    8,    'SEED-TRANSFER-0001', 14),
+  ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', 4000, 'succeeded', 'pending', NULL, NULL,                9),
+  ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000003', 3000, 'succeeded', 'pending', NULL, NULL,                3),
+  ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000004', 3500, 'succeeded', 'pending', NULL, NULL,                2),
+  ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000005', 1800, 'failed',    'pending', NULL, NULL,                1),  -- first attempt declined
+  ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000005', 1800, 'pending',   'pending', NULL, NULL,                0),  -- retry in progress
+  ('40000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000006', 2800, 'failed',    'pending', NULL, NULL,                6),
+  ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000007', 1500, 'succeeded', 'pending', NULL, NULL,                5),
+  ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000008', 2500, 'succeeded', 'pending', NULL, NULL,                1)
+) AS v(id, booking_id, amount_cents, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago)
 ON CONFLICT DO NOTHING;

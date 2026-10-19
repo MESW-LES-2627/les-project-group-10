@@ -114,6 +114,29 @@ export async function findPublicMentor(id: string) {
     [id],
   );
 
+  const availability = await pool.query<{ date: string; time: string }>(
+    `SELECT to_char(starts_at AT TIME ZONE 'Europe/Lisbon', 'YYYY-MM-DD') AS date,
+            to_char(starts_at AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS time
+       FROM mentor_availability_slot slot
+      WHERE slot.mentor_id = $1 AND slot.starts_at > now()
+        AND NOT EXISTS (
+          SELECT 1
+            FROM booking b
+            JOIN service s ON s.id = b.service_id
+           WHERE s.mentor_id = slot.mentor_id
+             AND b.scheduled_at = slot.starts_at
+             AND b.status <> 'cancelled'
+        )
+      ORDER BY slot.starts_at`,
+    [id],
+  );
+  const slotsByDate = new Map<string, string[]>();
+  for (const slot of availability.rows) {
+    const times = slotsByDate.get(slot.date) ?? [];
+    times.push(slot.time);
+    slotsByDate.set(slot.date, times);
+  }
+
   return {
     id: mentor.id,
     username: mentor.username,
@@ -125,6 +148,7 @@ export async function findPublicMentor(id: string) {
     linkedinUrl: mentor.linkedin_url ?? '',
     skills: mentor.skills,
     subjects: subjects.rows.map((row) => row.name),
+    availability: [...slotsByDate].map(([date, times]) => ({ date, times })),
     services: services.rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -133,4 +157,16 @@ export async function findPublicMentor(id: string) {
       durationMinutes: row.duration_minutes,
     })),
   };
+}
+
+export async function findPublicMentors() {
+  const { rows } = await pool.query<{ id: string }>(
+    `SELECT m.user_id AS id
+       FROM mentor m
+       JOIN "user" u ON u.id = m.user_id
+      WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
+      ORDER BY u.username`,
+  );
+  const mentors = await Promise.all(rows.map(({ id }) => findPublicMentor(id)));
+  return mentors.filter((mentor) => mentor !== undefined);
 }
