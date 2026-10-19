@@ -10,7 +10,9 @@ export default function DashboardFindMentorsPage() {
     <DashboardLayout title="Find a mentor">
       <div className="flex flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
         <div className="flex flex-col gap-1.5">
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Find a mentor</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Find a mentor
+          </h1>
           <p className="font-sans text-base text-ink-soft">
             Compare expertise, fees and availability, then book a session.
           </p>

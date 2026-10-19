@@ -134,7 +134,7 @@ export function MentorDirectory() {
     <div className="flex w-full flex-col gap-8">
       <form
         onSubmit={handleSearchSubmit}
-        className="flex w-full flex-col items-stretch gap-4 rounded-[20px] border border-line bg-surface p-6 shadow-[0px_12px_32px_0px_rgba(13,43,36,0.06)] sm:flex-row sm:items-center"
+        className="flex w-full flex-col items-stretch gap-4 rounded-[20px] border border-line bg-surface p-4 shadow-[0px_12px_32px_0px_rgba(13,43,36,0.06)] sm:p-6 md:flex-row md:items-center"
       >
         <div className="flex flex-1 items-center gap-3 rounded-[10px] border border-line bg-canvas px-4 py-3.5">
           <Search className="size-5 shrink-0 text-ink-muted" />
@@ -146,12 +146,18 @@ export function MentorDirectory() {
             className="min-w-0 flex-1 bg-transparent font-sans text-base text-ink placeholder:text-ink-muted focus:outline-none"
           />
         </div>
-        <Button type="submit" variant="blue" icon={<ArrowRight className="size-5" />}>
+        <Button
+          type="submit"
+          variant="blue"
+          fullWidth
+          className="md:w-auto"
+          icon={<ArrowRight className="size-5" />}
+        >
           Search mentors
         </Button>
       </form>
 
-      <div className="flex w-full flex-col gap-8 lg:flex-row">
+      <div className="flex w-full flex-col gap-8 xl:flex-row">
         <MentorFilters
           subjectOptions={subjectOptions}
           languageOptions={languageOptions}

@@ -54,7 +54,7 @@ export function MentorFilters({
   }
 
   return (
-    <div className="flex w-70 shrink-0 flex-col gap-5 rounded-2xl border border-line bg-surface p-6">
+    <div className="flex w-full shrink-0 flex-col gap-5 rounded-2xl border border-line bg-surface p-4 sm:p-6 xl:w-70">
       <div className="flex w-full items-center justify-between">
         <p className="font-display text-lg font-semibold tracking-tight text-ink">Filters</p>
         <button
