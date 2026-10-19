@@ -1,26 +1,24 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import type { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
   Clock,
-  CreditCard,
-  Globe,
   GraduationCap,
   Lock,
   ShieldCheck,
   Sparkles,
-  User,
-  Mail,
   Video,
 } from 'lucide-react';
-import { Avatar, Button, InfoNote, Input, Logo, SelectField } from '@/components/ui';
+import { Avatar, Button, InfoNote, Logo } from '@/components/ui';
 import { getMentorById } from '@/api/mentors';
 import type { Mentor, MentorService } from '@/api/mentors';
-import { createMockCheckout } from '@/api/bookings';
-import type { MockPaymentMethod, MockPaymentOutcome } from '@/api/bookings';
+import { createStripeCheckout, getStripeConfig } from '@/api/bookings';
 import {
   PLATFORM_FEE,
   formatEuro,
@@ -30,100 +28,143 @@ import {
   sessionRange,
   sessionTotal,
 } from '@/lib/booking';
-import clsx from 'clsx';
 import { useAuth } from '@/auth/useAuth';
 
-/** Collects only the mock decision; payment details never enter the application. */
 export default function CheckoutPage() {
   const { mentorId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [selection, setSelection] = useState<{
     service: MentorService;
     date: string;
     time: string;
   } | null>(null);
-  const [ready, setReady] = useState(false);
-  const [method, setMethod] = useState<MockPaymentMethod>('card');
-  const [outcome, setOutcome] = useState<MockPaymentOutcome>('approved');
-  const { user } = useAuth();
-  const [fullName, setFullName] = useState(user?.username ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242');
-  const [expiry, setExpiry] = useState('12 / 28');
-  const [cvc, setCvc] = useState('123');
-  const [nameOnCard, setNameOnCard] = useState(user?.username ?? '');
-  const [country, setCountry] = useState('Portugal');
-  const [submitting, setSubmitting] = useState(false);
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [clientSecret, setClientSecret] = useState('');
+  const [bookingId, setBookingId] = useState('');
   const [error, setError] = useState('');
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const { user } = useAuth();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     if (!mentorId) return;
     let cancelled = false;
-    getMentorById(mentorId).then((data) => {
-      if (cancelled) return;
-      setMentor(data);
-      setSelection(data ? readSelection(searchParams.toString(), data) : null);
-      setReady(true);
-    });
+    Promise.all([getMentorById(mentorId), getStripeConfig()])
+      .then(([data, config]) => {
+        if (cancelled) return;
+        setMentor(data);
+        setSelection(data ? readSelection(searchParams.toString(), data) : null);
+        setStripePromise(loadStripe(config.publishableKey));
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : 'Checkout could not be loaded.');
+      });
     return () => {
       cancelled = true;
     };
   }, [mentorId, searchParams]);
 
-  if (!ready) return <div className="min-h-screen bg-canvas" />;
-  if (!mentor || !selection) {
-    return (
-      <div className="flex min-h-screen flex-col items-center bg-canvas px-6 py-20">
-        <p className="font-display text-3xl font-bold tracking-tight text-ink">
-          Choose a session first
-        </p>
-        <Link
-          to={mentor ? `/mentors/${mentor.id}` : '/mentors'}
-          className="mt-4 font-sans text-sm font-medium text-secondary"
-        >
-          Back to the mentor
-        </Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!mentor || !selection || !user) return;
+    let cancelled = false;
+    createStripeCheckout({
+      serviceId: selection.service.id,
+      date: selection.date,
+      time: selection.time,
+      idempotencyKey,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setBookingId(result.bookingId);
+        setClientSecret(result.clientSecret);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : 'Checkout could not be started.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mentor, selection, user, idempotencyKey]);
 
+  if (!mentor || !selection) {
+    return <div className="min-h-screen bg-canvas" />;
+  }
   const total = sessionTotal(selection.service.price);
   const query = searchParams.toString();
+  if (error)
+    return (
+      <div className="mx-auto max-w-xl px-6 py-20 text-center font-sans text-danger" role="alert">
+        {error}
+      </div>
+    );
+  if (!stripePromise || !clientSecret || !bookingId)
+    return <div className="min-h-screen bg-canvas" />;
+
+  const options: StripeElementsOptions = {
+    clientSecret,
+    appearance: { theme: 'stripe', variables: { colorPrimary: '#0f766e', borderRadius: '10px' } },
+  };
+
+  return (
+    <Elements stripe={stripePromise} options={options}>
+      <CheckoutForm
+        mentor={mentor}
+        selection={selection}
+        query={query}
+        total={total}
+        bookingId={bookingId}
+        userName={user?.username ?? ''}
+        userEmail={user?.email ?? ''}
+      />
+    </Elements>
+  );
+}
+
+function CheckoutForm({
+  mentor,
+  selection,
+  query,
+  total,
+  bookingId,
+  userName,
+  userEmail,
+}: {
+  mentor: Mentor;
+  selection: { service: MentorService; date: string; time: string };
+  query: string;
+  total: number;
+  bookingId: string;
+  userName: string;
+  userEmail: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const returnUrl = `${window.location.origin}/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`;
 
   async function handlePay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!mentor || !selection || submitting) return;
+    if (!stripe || !elements || submitting) return;
     setSubmitting(true);
     setError('');
-    try {
-      const { booking } = await createMockCheckout({
-        serviceId: selection.service.id,
-        date: selection.date,
-        time: selection.time,
-        paymentMethod: method,
-        outcome,
-        idempotencyKey,
-      });
-      if (booking.payment_status === 'succeeded' && booking.status === 'confirmed') {
-        navigate(`/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(booking.id)}`);
-      } else {
-        setError(
-          'The mock payment was declined. Your booking was not confirmed. Choose an approved outcome or try again.',
-        );
-        setIdempotencyKey(crypto.randomUUID());
-      }
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Checkout could not be completed. Please try again.',
-      );
-    } finally {
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: returnUrl,
+        payment_method_data: { billing_details: { name: userName, email: userEmail } },
+      },
+      redirect: 'if_required',
+    });
+    if (result.error) {
+      setError(result.error.message ?? 'Payment could not be completed. Please try again.');
       setSubmitting(false);
+      return;
     }
+    navigate(`/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`);
   }
 
   return (
@@ -157,7 +198,6 @@ export default function CheckoutPage() {
           Secure checkout
         </p>
       </header>
-
       <form
         onSubmit={handlePay}
         className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 lg:flex-row lg:px-10"
@@ -180,147 +220,23 @@ export default function CheckoutPage() {
             </p>
           </div>
           <InfoNote icon={<Sparkles className="size-5" />} tone="accent">
-            <span className="font-semibold">Mock checkout.</span> Card and contact fields are
-            illustrative only. They are not sent to a payment provider or saved; no real payment is
-            made.
+            <span className="font-semibold">Stripe test mode.</span> This checkout uses Stripe test
+            credentials and does not move real money.
           </InfoNote>
-
           <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
             <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Contact details
+              Payment details
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Full name"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                leadingIcon={<User className="size-5" />}
-                required
-              />
-              <Input
-                label="Email for receipt"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                leadingIcon={<Mail className="size-5" />}
-                required
-              />
-            </div>
-            <p className="font-sans text-xs text-ink-muted">
-              This prototype does not send email receipts.
-            </p>
+            <p className="font-sans text-sm text-ink-soft">Paying as {userEmail}</p>
+            <PaymentElement
+              options={{
+                layout: 'tabs',
+                wallets: { applePay: 'auto', googlePay: 'auto', link: 'never' },
+                defaultValues: { billingDetails: { name: userName, email: userEmail } },
+                fields: { billingDetails: { name: 'never', email: 'never' } },
+              }}
+            />
           </section>
-
-          <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
-            <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Payment method
-            </h2>
-            <div className="grid grid-cols-3 gap-3">
-              <MethodButton
-                label="Card"
-                icon={<CreditCard className="size-5" />}
-                selected={method === 'card'}
-                onClick={() => setMethod('card')}
-              />
-              <MethodButton
-                label="MB WAY"
-                icon={<span aria-hidden>◎</span>}
-                selected={method === 'mbway'}
-                onClick={() => setMethod('mbway')}
-              />
-              <MethodButton
-                label="Apple Pay"
-                icon={<span aria-hidden>●</span>}
-                selected={method === 'apple'}
-                onClick={() => setMethod('apple')}
-              />
-            </div>
-            <p className="font-sans text-sm text-ink-soft">
-              Choose a method to record on the mock payment. No provider is contacted.
-            </p>
-            {method === 'card' && (
-              <div className="flex flex-col gap-4">
-                <Input
-                  label="Card number"
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  leadingIcon={<CreditCard className="size-5" />}
-                  required
-                />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Expiry date"
-                    value={expiry}
-                    onChange={(event) => setExpiry(event.target.value)}
-                    leadingIcon={<Calendar className="size-5" />}
-                    required
-                  />
-                  <Input
-                    label="CVC"
-                    value={cvc}
-                    onChange={(event) => setCvc(event.target.value)}
-                    leadingIcon={<Lock className="size-5" />}
-                    required
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Name on card"
-                    value={nameOnCard}
-                    onChange={(event) => setNameOnCard(event.target.value)}
-                    leadingIcon={<User className="size-5" />}
-                    required
-                  />
-                  <SelectField
-                    label="Country"
-                    leadingIcon={<Globe className="size-5" />}
-                    options={['Portugal', 'Spain', 'France', 'Other']}
-                    value={country}
-                    onChange={setCountry}
-                  />
-                </div>
-              </div>
-            )}
-            {method === 'mbway' && (
-              <p className="font-sans text-sm text-ink-soft">
-                MB WAY is simulated here. Choosing “approved” or “declined” below controls the
-                result; no app or bank is contacted.
-              </p>
-            )}
-            {method === 'apple' && (
-              <p className="font-sans text-sm text-ink-soft">
-                Apple Pay is a visual mock option only. No wallet is opened or charged.
-              </p>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
-            <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Simulated payment result
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {(['approved', 'declined'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={outcome === value}
-                  onClick={() => setOutcome(value)}
-                  className={clsx(
-                    'rounded-xl border px-4 py-3 text-left font-sans text-sm font-medium capitalize',
-                    outcome === value
-                      ? 'border-primary bg-primary-soft text-ink'
-                      : 'border-line bg-surface text-ink-soft',
-                  )}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-            <p className="font-sans text-xs text-ink-muted">
-              This lets you experience both the successful booking and declined-payment paths.
-            </p>
-          </section>
-
           {error && (
             <p
               role="alert"
@@ -333,19 +249,16 @@ export default function CheckoutPage() {
             type="submit"
             variant="blue"
             fullWidth
-            disabled={submitting}
+            disabled={!stripe || submitting}
             icon={<ArrowRight className="size-5" />}
           >
-            {submitting
-              ? 'Processing mock payment…'
-              : `Pay ${formatEuro(total)} and confirm booking`}
+            {submitting ? 'Processing payment…' : `Pay ${formatEuro(total)} and confirm booking`}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-center font-sans text-xs text-ink-muted">
             <Lock className="size-3.5" />
-            Internal simulation only · no card data or money is sent anywhere.
+            Payment is processed in Stripe test mode.
           </p>
         </div>
-
         <aside className="flex h-fit w-full shrink-0 flex-col gap-4 rounded-[20px] border border-line bg-surface p-7 lg:w-95">
           <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
             Order summary
@@ -397,35 +310,6 @@ export default function CheckoutPage() {
         </aside>
       </form>
     </div>
-  );
-}
-
-function MethodButton({
-  label,
-  icon,
-  selected,
-  onClick,
-}: {
-  label: string;
-  icon: ReactNode;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={clsx(
-        'flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl border font-sans text-sm font-medium',
-        selected
-          ? 'border-primary bg-primary-soft text-ink'
-          : 'border-line bg-surface text-ink-soft',
-      )}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 

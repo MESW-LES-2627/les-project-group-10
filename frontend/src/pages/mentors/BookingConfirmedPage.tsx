@@ -25,21 +25,37 @@ export default function BookingConfirmedPage() {
   useEffect(() => {
     let cancelled = false;
     if (!bookingId) return;
-    getBooking(bookingId)
-      .then(({ booking: record }) => {
-        if (!cancelled) setLoaded({ bookingId, booking: record });
-      })
-      .catch(() => {
-        if (!cancelled) setLoaded({ bookingId, booking: null });
-      });
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () =>
+      getBooking(bookingId)
+        .then(({ booking: record }) => {
+          if (cancelled) return;
+          setLoaded({ bookingId, booking: record });
+          if (record.payment_status === 'pending') timer = setTimeout(refresh, 1500);
+        })
+        .catch(() => {
+          if (!cancelled) setLoaded({ bookingId, booking: null });
+        });
+    void refresh();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [bookingId]);
 
   const ready = !bookingId || loaded.bookingId === bookingId;
   const booking = loaded.bookingId === bookingId ? loaded.booking : null;
   if (!ready) return <div className="min-h-screen bg-canvas" />;
+  if (booking?.payment_status === 'pending') {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <NavBar variant="student" />
+        <p className="mx-auto max-w-lg px-6 py-20 text-center font-sans text-ink-soft">
+          Verifying your payment with Stripe…
+        </p>
+      </div>
+    );
+  }
   if (!booking || booking.status !== 'confirmed' || booking.payment_status !== 'succeeded') {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
@@ -73,20 +89,19 @@ export default function BookingConfirmedPage() {
   const when = formatTicketDate(date);
   const duration = `${confirmedBooking.duration_minutes} min`;
   const range = sessionRange(time, duration);
-  const ref = confirmedBooking.mock_reference ?? confirmedBooking.id;
+  const ref = confirmedBooking.id;
 
   function downloadReceipt() {
     downloadTextFile(
       `${ref}.txt`,
       [
-        'FEUP Connect — mock payment receipt',
+        'FEUP Connect — Stripe test payment receipt',
         `Booking ref ${confirmedBooking.id}`,
         `${confirmedBooking.service_title} with ${confirmedBooking.mentor_name}`,
         `${when} · ${range}`,
         `Amount: ${formatEuro(confirmedBooking.amount_cents / 100)}`,
-        `Method: ${confirmedBooking.mock_method ?? 'mock'}`,
-        `Mock reference: ${ref}`,
-        'No real payment was made.',
+        `Booking reference: ${ref}`,
+        'Payment processed in Stripe test mode.',
       ].join('\n'),
       'text/plain',
     );
@@ -117,7 +132,7 @@ export default function BookingConfirmedPage() {
           You&rsquo;re booked!
         </h1>
         <p className="max-w-xl text-center font-sans text-lg text-ink-soft">
-          The mock payment was approved and your booking is saved. No real payment was made.
+          Your test payment was verified by Stripe and your booking is confirmed.
         </p>
         <article className="w-full overflow-hidden rounded-3xl border border-line bg-surface shadow-[0px_16px_40px_0px_rgba(13,43,36,0.1)]">
           <div className="flex items-center gap-4 bg-primary p-7">
@@ -140,7 +155,7 @@ export default function BookingConfirmedPage() {
               </p>
             </div>
             <span className="rounded-full bg-accent px-3 py-1.5 font-sans text-xs font-medium text-primary">
-              MOCK PAID
+              TEST PAID
             </span>
           </div>
           <div className="grid grid-cols-2 gap-4 p-7 sm:grid-cols-4">
@@ -153,7 +168,7 @@ export default function BookingConfirmedPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 px-7 py-4">
             <p className="inline-flex items-center gap-2 font-sans text-xs font-medium text-ink-muted">
               <ShieldCheck className="size-4" />
-              Booking {booking.id} · mock ref {ref}
+              Booking {booking.id}
             </p>
             <button
               type="button"

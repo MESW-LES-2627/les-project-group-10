@@ -1,16 +1,11 @@
 import { apiGet, apiPost } from './client';
 
-export type MockPaymentMethod = 'card' | 'mbway' | 'apple';
-export type MockPaymentOutcome = 'approved' | 'declined';
-
 export interface BookingRecord {
   id: string;
   status: 'pending_payment' | 'confirmed' | 'completed' | 'cancelled';
   scheduled_at: string;
   payment_status: 'pending' | 'succeeded' | 'failed';
   amount_cents: number;
-  mock_method: MockPaymentMethod | null;
-  mock_reference: string | null;
   service_id: string;
   service_title: string;
   duration_minutes: number;
@@ -19,17 +14,21 @@ export interface BookingRecord {
   mentor_headline: string;
 }
 
-export interface MockCheckoutInput {
+export interface StripeCheckoutInput {
   serviceId: string;
   date: string;
   time: string;
-  paymentMethod: MockPaymentMethod;
-  outcome: MockPaymentOutcome;
   idempotencyKey: string;
 }
 
-export function createMockCheckout(input: MockCheckoutInput): Promise<{ booking: BookingRecord }> {
-  return apiPost('/api/bookings/checkout/mock', input);
+export function createStripeCheckout(
+  input: StripeCheckoutInput,
+): Promise<{ bookingId: string; clientSecret: string }> {
+  return apiPost('/api/bookings/checkout/stripe', input);
+}
+
+export function getStripeConfig(): Promise<{ publishableKey: string }> {
+  return apiGet('/api/bookings/stripe/config');
 }
 
 export function getBooking(bookingId: string): Promise<{ booking: BookingRecord }> {
