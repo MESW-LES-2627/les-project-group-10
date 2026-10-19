@@ -1,8 +1,8 @@
-# Iteration 1 claim — FEUP Connect
+# Iteration 0 claim — FEUP Connect
 
 Group 10 · MESW / LES 2026–27 · 19 October 2026
 
-This file is `docs/iterations/1/CLAIM.md` on tag `iter-1`.
+This file is `docs/iterations/1/CLAIM.md` on tag `iter-0`.
 
 - [This tag](../../..)
 - [Compare with the last tag](https://github.com/MESW-LES-2627/les-project-group-10/compare/165beeb4e218d1f8dd8defd4554f93534421f333...0795a6986b0cf1c95b7cf5ea9c0a08040a186c70)
@@ -19,7 +19,7 @@ This file is `docs/iterations/1/CLAIM.md` on tag `iter-1`.
 
 ## This tag
 
-[Repository tree](../../..) for the commit that contains this file. The tag name is `iter-1`.
+[Project tree](../../../README.md#project-tree) for the commit that contains this file. The tag name is `iter-1`.
 
 The slice on that tree is the frontend at [router.tsx](../../../frontend/src/routes/router.tsx) and the health check in [app.ts](../../../backend/src/app.ts).
 
@@ -106,7 +106,7 @@ The catalog is Mariana Silva, João Ferreira, Inês Costa, and Rui Almeida, in [
 
 ## How to run the tests
 
-[frontend/package.json](../../../frontend/package.json), [backend/package.json](../../../backend/package.json), and [package.json](../../../package.json) define no `test` script. The repository has no test files.
+[frontend/package.json](../../../frontend/package.json), [backend/package.json](../../../backend/package.json), and [package.json](../../../package.json) define no `test` script. The repository has no test files. These will be added in future iterations.
 
 The checks that are defined:
 
