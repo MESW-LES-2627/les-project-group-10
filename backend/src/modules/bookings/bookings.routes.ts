@@ -7,15 +7,15 @@ import {
   attachPaymentIntent,
   createPendingBooking,
   expirePendingPayments,
+  findPendingStripePayments,
   findBookingForStudent,
   findUpcomingBookingsForStudent,
-  markPaymentEvent,
+  markStripePaymentResult,
 } from './bookings.queries.js';
 import { stripeCheckoutSchema } from './bookings.schemas.js';
 import { stripe } from './stripe.js';
 
 export const bookingsRouter = Router();
-export const stripeWebhookRouter = Router();
 
 bookingsRouter.get('/stripe/config', (_req, res) => {
   res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
@@ -60,29 +60,24 @@ bookingsRouter.get('/:bookingId', requireAuth, async (req, res) => {
   res.json({ booking });
 });
 
-stripeWebhookRouter.post('/', async (req, res) => {
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      req.header('stripe-signature')!,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    );
-  } catch {
-    res.status(400).send('Invalid Stripe signature');
-    return;
-  }
-  if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.canceled') {
-    const intent = event.data.object;
-    await markPaymentEvent(intent.id, event.type === 'payment_intent.succeeded');
-  }
-  res.json({ received: true });
-});
-
-export async function sweepExpiredStripePayments() {
-  const intentIds = await expirePendingPayments();
+export async function pollStripePayments() {
+  const pendingIntentIds = await findPendingStripePayments();
   await Promise.all(
-    intentIds.map(async (id) => {
+    pendingIntentIds.map(async (id) => {
+      try {
+        const intent = await stripe.paymentIntents.retrieve(id);
+        if (intent.status === 'succeeded' || intent.status === 'canceled') {
+          await markStripePaymentResult(id, intent.status === 'succeeded');
+        }
+      } catch (error) {
+        console.warn(`Could not check Stripe PaymentIntent ${id}`, error);
+      }
+    }),
+  );
+
+  const expiredIntentIds = await expirePendingPayments();
+  await Promise.all(
+    expiredIntentIds.map(async (id) => {
       try {
         await stripe.paymentIntents.cancel(id);
       } catch (error) {

@@ -112,7 +112,17 @@ export async function attachPaymentIntent(paymentId: string, intentId: string) {
   ]);
 }
 
-export async function markPaymentEvent(intentId: string, succeeded: boolean) {
+export async function findPendingStripePayments() {
+  const { rows } = await pool.query<{ stripe_payment_intent_id: string }>(
+    `SELECT p.stripe_payment_intent_id FROM payment p
+       JOIN booking b ON b.id = p.booking_id
+      WHERE p.status = 'pending' AND b.status = 'pending_payment'
+        AND p.stripe_payment_intent_id IS NOT NULL`,
+  );
+  return rows.map((row) => row.stripe_payment_intent_id);
+}
+
+export async function markStripePaymentResult(intentId: string, succeeded: boolean) {
   return withPaymentLock(async (client) => {
     const found = await client.query<{
       id: string;
