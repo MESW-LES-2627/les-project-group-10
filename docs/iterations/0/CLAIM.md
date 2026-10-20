@@ -110,6 +110,13 @@ This increment’s running slice is the stories below.
 
 A student at FEUP can be stuck on one idea after the lecture and the notes. Someone else already understands it: a classmate, a teaching assistant, a graduate, or an engineer who uses the idea at work. FEUP Connect is how the student finds that person, sees what they offer, and books an hour. It starts with students helping students, and it includes tutors from outside the university.
 
+## Definition of Done
+
+- The feature works as intended and follows the project’s folder structure and conventions.
+- Relevant unit, integration, and other tests pass.
+- The changed files pass linting and formatting checks.
+- The feature and any necessary usage details are documented in a Markdown file or another appropriate format.
+
 ## Stories in this increment
 
 1. As a visitor, I can read what FEUP Connect is, how a session is booked, and a FAQ. The featured mentors on this page are static examples. [LandingPage.tsx](../../../frontend/src/pages/landing/LandingPage.tsx)
