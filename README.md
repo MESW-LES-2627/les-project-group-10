@@ -102,6 +102,40 @@ They **cannot log in**, because their passwords were hashed with a different alg
 login uses. Create your own account at http://localhost:5173/signup instead. Registering as a
 mentor leads to the onboarding steps; finishing them saves your profile.
 
+## Project tree
+
+```
+les-project-group-10/
+├── README.md
+├── docker-compose.yml        # PostgreSQL 17 and pgAdmin 4
+├── .env.example              # copy to .env
+├── package.json              # root: Prettier, Husky, lint-staged only
+├── docs/
+│   └── iterations/           # one CLAIM.md per iteration
+├── backend/                  # Express 5 + TypeScript API
+│   ├── db/
+│   │   ├── migrations/       # numbered .sql files, applied in order
+│   │   └── seed.sql          # sample mentors, safe to run again
+│   └── src/
+│       ├── app.ts            # builds the Express app (no listen)
+│       ├── server.ts         # starts the server
+│       ├── db/               # pool, migration runner, seed, transactions
+│       ├── middleware/       # error handler, auth check, Zod validation
+│       └── modules/          # one folder per feature
+│           ├── auth/
+│           ├── mentors/
+│           └── bookings/     # checkout and Stripe payments
+└── frontend/                 # React 19 + Vite + Tailwind CSS v4
+    └── src/
+        ├── api/              # fetch helpers for the backend
+        ├── auth/             # login state
+        ├── components/       # reusable UI
+        ├── layouts/
+        ├── lib/              # helpers (booking, mentor search, ...)
+        ├── pages/            # landing, auth, dashboard, mentors, onboarding
+        └── routes/           # router
+```
+
 ## Useful commands
 
 | Where    | Command                                   | What it does                   |
