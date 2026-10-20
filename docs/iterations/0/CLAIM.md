@@ -145,6 +145,8 @@ This increment is the commits in [Compare with the last tag](#compare-with-the-l
 
 Google Stitch was used to assist with generating the design for the project. Working from the Figma design, Stitch was used to regenerate that design, and then to regenerate the design icons and illustrations.
 
+AI help was used to structure and database `schema.sql` creation. All the initial planning was done by us, with the help of draw.io for UML diagrams, AI was used as a mentor and teaching assistant.
+
 The landing illustration is [hero-mentor.jpg](../../../frontend/src/assets/illustrations/hero-mentor.jpg). The colors and type from the design are in [index.css](../../../frontend/src/index.css).
 
 ## Team artefacts
