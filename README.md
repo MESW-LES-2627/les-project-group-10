@@ -125,7 +125,7 @@ les-project-group-10/
 │       ├── db/               # pool, migration runner, seed, transactions
 │       ├── middleware/       # error handler, auth check, Zod validation
 │       └── modules/          # one folder per feature
-│           ├── auth/
+│           ├── auth/         # *.test.ts live next to the code they cover
 │           ├── mentors/
 │           └── bookings/     # checkout and Stripe payments
 └── frontend/                 # React 19 + Vite + Tailwind CSS v4
@@ -134,10 +134,26 @@ les-project-group-10/
         ├── auth/             # login state
         ├── components/       # reusable UI
         ├── layouts/
-        ├── lib/              # helpers (booking, mentor search, ...)
+        ├── lib/              # helpers (booking, mentor search, ...), with *.test.ts beside them
         ├── pages/            # landing, auth, dashboard, mentors, onboarding
         └── routes/           # router
 ```
+
+## Testing
+
+Both packages use [Vitest](https://vitest.dev) for unit tests. Tests live next to the code they
+cover as `*.test.ts` (for example `backend/src/modules/auth/password.test.ts`), rather than in a
+separate `tests/` folder, so a test is easy to find from its source file and gets deleted together
+with it.
+
+```bash
+(cd backend && npm test)
+(cd frontend && npm test)
+```
+
+These are unit tests only: pure functions such as password hashing, session tokens, Zod schemas,
+and the frontend's `src/lib/` helpers (booking math, mentor search, redirects). There is no
+database, network, or rendering involved, and no Stripe calls are made.
 
 ## Useful commands
 
@@ -145,8 +161,10 @@ les-project-group-10/
 | -------- | ----------------------------------------- | ------------------------------ |
 | root     | `npm run format` / `npm run format:check` | Format / check formatting      |
 | backend  | `npm run lint` / `npm run typecheck`      | ESLint / TypeScript check      |
+| backend  | `npm test`                                | Run Vitest unit tests          |
 | backend  | `npm run db:migrate` / `npm run db:seed`  | Apply new migrations / seed    |
 | frontend | `npm run lint` / `npm run build`          | ESLint / type check and build  |
+| frontend | `npm test`                                | Run Vitest unit tests          |
 | root     | `docker compose down`                     | Stop the database (keeps data) |
 | root     | `docker compose down -v`                  | Stop and wipe the database     |
 
