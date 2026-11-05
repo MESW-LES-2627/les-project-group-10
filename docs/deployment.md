@@ -4,7 +4,7 @@
 
 Each app has a Docker image. The backend image contains the built app and the database migrations. The frontend image uses Nginx to serve the site, open React pages after a refresh, and send API requests to the backend.
 
-The deployment workflow runs on pushes to `develop` and `main`, using the server runner labelled `les-deploy`. It builds images for the exact commit and skips older runs. It waits for the database, saves a backup, and runs migrations before replacing the apps. It then checks the site, API and database, including public HTTPS. A separate CI workflow runs checks and unit tests on pull requests into both branches. Deployments do not wait for CI. Ask an admin to require a teammate review and passing CI on both branches. Until those rules are enforced, the team must check them before merging.
+The deployment workflow runs on pushes to `develop` and `main`, using the server runner labelled `les-deploy`. It builds images for the exact commit and skips older runs. It waits for the database, saves a backup, and runs migrations before replacing the apps. It then checks the site, API and database, including public HTTPS. A separate CI workflow runs its existing checks on pull requests into both branches. Unit tests are run locally. Deployments do not wait for CI. Ask an admin to require a teammate review and passing CI on both branches. Until those rules are enforced, the team must check them before merging.
 
 The same Compose file runs as `les-staging` and `les-production`. Each has its own network, database volume and server secrets. Both use secure session cookies and Stripe test keys. The local development Compose file stays separate. No database port is opened on the server.
 
