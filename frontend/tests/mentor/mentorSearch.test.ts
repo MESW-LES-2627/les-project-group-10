@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Mentor } from '@/api/mentors';
-import { matchesMentorSearch } from './mentorSearch';
+import { matchesMentorSearch } from '@/lib/mentorSearch';
 
 function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
   return {

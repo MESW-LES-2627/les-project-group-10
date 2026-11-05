@@ -119,32 +119,42 @@ les-project-group-10/
 │   ├── db/
 │   │   ├── migrations/       # numbered .sql files, applied in order
 │   │   └── seed.sql          # sample mentors, safe to run again
+│   ├── tests/                # *.test.ts, one folder per feature (mirrors src/modules)
+│   │   ├── auth/
+│   │   ├── mentors/
+│   │   └── middleware/
 │   └── src/
 │       ├── app.ts            # builds the Express app (no listen)
 │       ├── server.ts         # starts the server
 │       ├── db/               # pool, migration runner, seed, transactions
 │       ├── middleware/       # error handler, auth check, Zod validation
 │       └── modules/          # one folder per feature
-│           ├── auth/         # *.test.ts live next to the code they cover
+│           ├── auth/
 │           ├── mentors/
 │           └── bookings/     # checkout and Stripe payments
 └── frontend/                 # React 19 + Vite + Tailwind CSS v4
+    ├── tests/                # *.test.ts, one folder per src/lib/ file (mentor* files share one)
+    │   ├── authRedirect/
+    │   ├── booking/
+    │   └── mentor/           # mentorProfile.test.ts, mentorSearch.test.ts
     └── src/
         ├── api/              # fetch helpers for the backend
         ├── auth/             # login state
         ├── components/       # reusable UI
         ├── layouts/
-        ├── lib/              # helpers (booking, mentor search, ...), with *.test.ts beside them
+        ├── lib/              # helpers (booking, mentor search, ...)
         ├── pages/            # landing, auth, dashboard, mentors, onboarding
         └── routes/           # router
 ```
 
 ## Testing
 
-Both packages use [Vitest](https://vitest.dev) for unit tests. Tests live next to the code they
-cover as `*.test.ts` (for example `backend/src/modules/auth/password.test.ts`), rather than in a
-separate `tests/` folder, so a test is easy to find from its source file and gets deleted together
-with it.
+Both packages use [Vitest](https://vitest.dev) for unit tests. Tests live under a top-level
+`tests/` folder in each package, mirroring the source they cover: backend tests are grouped by
+module, one subfolder per `src/modules/*` folder (for example `backend/tests/auth/password.test.ts`
+tests `backend/src/modules/auth/password.ts`); frontend tests are grouped by topic, one subfolder
+per `src/lib/*.ts` file, or per related group of files (`tests/mentor/` holds both
+`mentorProfile.test.ts` and `mentorSearch.test.ts`, since both test mentor-related helpers).
 
 ```bash
 (cd backend && npm test)

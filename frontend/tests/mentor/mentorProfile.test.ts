@@ -7,7 +7,7 @@ import {
   pluralize,
   tagsFromSkills,
   toOnboardingPayload,
-} from './mentorProfile';
+} from '@/lib/mentorProfile';
 
 describe('getInitials', () => {
   it('returns the first and last initials for a full name', () => {

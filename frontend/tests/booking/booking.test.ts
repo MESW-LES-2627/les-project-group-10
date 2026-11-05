@@ -12,7 +12,7 @@ import {
   shiftWeek,
   startOfWeek,
   weekDates,
-} from './booking';
+} from '@/lib/booking';
 
 describe('parseDurationMinutes', () => {
   it('extracts the number of minutes from a duration string', () => {

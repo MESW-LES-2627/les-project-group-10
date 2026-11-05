@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Response } from 'express';
-import { errorHandler, HttpError } from './errorHandler.js';
+import { errorHandler, HttpError } from '../../src/middleware/errorHandler.js';
 
 function mockResponse() {
   const res: Partial<Response> = {};

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { loginSchema, registerMentorSchema, registerSchema } from './auth.schemas.js';
+import {
+  loginSchema,
+  registerMentorSchema,
+  registerSchema,
+} from '../../src/modules/auth/auth.schemas.js';
 
 describe('registerSchema', () => {
   const valid = { username: 'jane', email: 'jane@example.com', password: 'secret1' };

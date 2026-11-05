@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createSessionToken, verifySessionToken } from './session.js';
+import { createSessionToken, verifySessionToken } from '../../src/modules/auth/session.js';
 
 // Mirrors the signing scheme in session.ts so we can craft tokens by hand
 // (expired, tampered) using the JWT_SECRET set for tests in vitest.config.ts.

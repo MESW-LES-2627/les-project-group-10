@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AuthUser } from '@/api/auth';
-import { pathAfterLogin } from './authRedirect';
+import { pathAfterLogin } from '@/lib/authRedirect';
 
 function buildUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {

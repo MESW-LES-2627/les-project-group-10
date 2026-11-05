@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { parseBody } from './validate.js';
-import { HttpError } from './errorHandler.js';
+import { parseBody } from '../../src/middleware/validate.js';
+import { HttpError } from '../../src/middleware/errorHandler.js';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),

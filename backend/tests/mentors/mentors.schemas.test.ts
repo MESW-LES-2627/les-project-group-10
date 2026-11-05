@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mentorOnboardingSchema } from './mentors.schemas.js';
+import { mentorOnboardingSchema } from '../../src/modules/mentors/mentors.schemas.js';
 
 const validService = {
   title: 'Mock Interview',
