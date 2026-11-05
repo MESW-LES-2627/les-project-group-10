@@ -1,0 +1,55 @@
+name: Task
+description: Implementation or analysis task. Link it to its user story as a sub-issue.
+title: 'TASK: <actionable verb + object>'
+labels: ['type:task']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue number is this task's ID. Link the task to its user story as a sub-issue.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: 'What needs to be done, why it is needed, and any useful context or references.'
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: 'What is included in this task, grouped into logical sections. Include an explicit out-of-scope section.'
+      placeholder: |
+        **Setup**
+        - [ ] ...
+
+        **Implementation**
+        - [ ] ...
+
+        **Out of scope**
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: 'Conditions that must be met for this task to be accepted.'
+      placeholder: |
+        - [ ] Given ... when ... then ...
+        - [ ] Given ... when ... then ...
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: 'Technical and quality criteria required before closing. Remove items that do not apply to this task (for example tests on a docs-only task).'
+      value: |
+        - [ ] Unit and integration tests written and passing (if applicable)
+        - [ ] CI green on the pull request (format, lint, typecheck, build)
+        - [ ] Documentation updated (if applicable)
+        - [ ] Follows the folder structure and conventions in `CLAUDE.md`
+        - [ ] Code reviewed by at least one team member and merged
+    validations:
+      required: true
