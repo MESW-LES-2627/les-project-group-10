@@ -134,7 +134,7 @@ les-project-group-10/
 │           └── bookings/     # checkout and Stripe payments
 └── frontend/                 # React 19 + Vite + Tailwind CSS v4
     ├── tests/                # *.test.ts, one folder per src/lib/ file (mentor* files share one)
-    │   ├── authRedirect/
+    │   ├── auth/             # authRedirect.test.ts
     │   ├── booking/
     │   └── mentor/           # mentorProfile.test.ts, mentorSearch.test.ts
     └── src/
