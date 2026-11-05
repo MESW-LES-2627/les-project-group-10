@@ -1,0 +1,27 @@
+name: Epic
+description: Group related user stories under a single product theme.
+title: "EPIC: <epic name>"
+labels: ["type:epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue number is this epic's ID. Link each user story to this epic as a sub-issue;
+        the sub-issue list is the source of truth for which stories belong to it.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: "What this epic covers and why it matters."
+    validations:
+      required: true
+  - type: textarea
+    id: stories
+    attributes:
+      label: Planned Stories
+      description: "Optional. Stories you already know about. Replace this list with sub-issues as the stories are created."
+      placeholder: |
+        - As a <role>, I want <goal>, so that <benefit>
+        - As a <role>, I want <goal>, so that <benefit>
+    validations:
+      required: false
