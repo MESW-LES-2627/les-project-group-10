@@ -1,0 +1,90 @@
+name: Bug Report
+description: Log an internal defect discovered during development or QA to be tracked and corrected.
+title: "BUG: <short summary of the defect>"
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue number is this bug's ID.
+  - type: textarea
+    id: linked-user-story
+    attributes:
+      label: Linked User Story / Feature
+      description: "Link the user story or feature where the defect was found and reference the relevant code. Write `n/a` if it does not belong to a story."
+      placeholder: "#<issue> (<story title>). Reference: `backend/src/modules/<module>/<file>.ts:<lines>` or `frontend/src/pages/<file>.tsx:<lines>`."
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "Critical: data loss, security issue, or a core flow is broken with no workaround"
+        - "High: a main feature is broken, a workaround exists"
+        - "Medium: a feature misbehaves in a limited way"
+        - "Low: cosmetic or minor inconvenience"
+    validations:
+      required: true
+  - type: textarea
+    id: description-impact
+    attributes:
+      label: Description & Impact
+      description: "What is broken, where it happens, and the impact on users or the system."
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: "Where the bug was observed."
+      placeholder: |
+        - Branch / commit:
+        - Browser and version (if frontend):
+        - OS:
+        - Node version:
+        - Local Docker database or other:
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: "Steps that consistently trigger the bug."
+      placeholder: |
+        1. Sign in as ... and open ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: Expected vs. Actual Behavior
+      description: "State what should happen and what actually happens."
+      placeholder: |
+        **Expected:** ...
+
+        **Actual:** ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs / Screenshots
+      description: "Optional. Paste error output or drag in screenshots. Remove secrets, tokens and Stripe payloads first."
+    validations:
+      required: false
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: "Conditions that must be met for the bug to be considered resolved."
+      value: |
+        - [ ] Root cause identified and fixed
+        - [ ] Fix verified against the steps to reproduce
+        - [ ] Regression test added (if applicable)
+        - [ ] CI green on the pull request (format, lint, typecheck, build)
+        - [ ] Code reviewed by at least one team member and merged
+    validations:
+      required: true

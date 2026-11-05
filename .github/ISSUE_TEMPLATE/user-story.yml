@@ -1,0 +1,54 @@
+name: User Story
+description: Feature request or functional capability described from an end-user perspective.
+title: "US: As a <role>, I want <goal>, so that <benefit>"
+labels: ["type:user-story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue number is this story's ID. Link the story to its epic as a sub-issue.
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: "State the story in the standard format."
+      placeholder: |
+        **As a** [user role],
+        **I want** [action/feature],
+        **So that** [value/benefit].
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: "Conditions that must be met for this story to be accepted."
+      placeholder: |
+        - [ ] Given ... when ... then ...
+        - [ ] Given ... when ... then ...
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: "Technical and quality criteria required before closing."
+      value: |
+        - [ ] Unit and integration tests written and passing
+        - [ ] CI green on the pull request (format, lint, typecheck, build)
+        - [ ] Documented in a `.md` file (in `docs/` or the module)
+        - [ ] Follows the folder structure and conventions in `CLAUDE.md`
+        - [ ] Behaves as described in the acceptance criteria
+        - [ ] Code reviewed by at least one team member and merged
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: "Optional. Link the parent epic, related issues or specs."
+      placeholder: |
+        - Epic: #<N>
+        - Related: #<N>
+    validations:
+      required: false
