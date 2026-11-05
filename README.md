@@ -2,6 +2,9 @@
 
 Platform connecting students with tutors, mentors and industry professionals.
 
+See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
+verify and complete user stories.
+
 ## Prerequisites
 
 - Node.js 22 or newer (ESLint and Vite crash on older versions; with nvm run `nvm use 22`)

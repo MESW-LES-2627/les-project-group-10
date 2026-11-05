@@ -1,0 +1,6 @@
+- The feature meets clear, agreed acceptance criteria and follows the project’s conventions.
+- Unit tests cover new or changed logic, including invalid inputs and edge cases. Integration tests verify affected interactions between components.
+- Manual or automated acceptance tests verify every acceptance criterion. Test steps, expected results and actual results are recorded.
+- Bug fixes include a regression test to prevent the same problem from returning.
+- CI runs automated tests, linting, formatting, type checks and builds on every pull request. All checks pass before merging.
+- A teammate reviews the code, tests and acceptance results before approval. Documentation is updated where needed.
