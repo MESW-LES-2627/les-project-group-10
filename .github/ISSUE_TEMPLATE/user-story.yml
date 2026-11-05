@@ -1,7 +1,7 @@
 name: User Story
 description: Feature request or functional capability described from an end-user perspective.
-title: "US: As a <role>, I want <goal>, so that <benefit>"
-labels: ["type:user-story"]
+title: 'US: As a <role>, I want <goal>, so that <benefit>'
+labels: ['type:user-story']
 body:
   - type: markdown
     attributes:
@@ -11,7 +11,7 @@ body:
     id: user-story
     attributes:
       label: User Story
-      description: "State the story in the standard format."
+      description: 'State the story in the standard format.'
       placeholder: |
         **As a** [user role],
         **I want** [action/feature],
@@ -22,7 +22,7 @@ body:
     id: acceptance-criteria
     attributes:
       label: Acceptance Criteria
-      description: "Conditions that must be met for this story to be accepted."
+      description: 'Conditions that must be met for this story to be accepted.'
       placeholder: |
         - [ ] Given ... when ... then ...
         - [ ] Given ... when ... then ...
@@ -32,7 +32,7 @@ body:
     id: definition-of-done
     attributes:
       label: Definition of Done
-      description: "Technical and quality criteria required before closing."
+      description: 'Technical and quality criteria required before closing.'
       value: |
         - [ ] Unit and integration tests written and passing
         - [ ] CI green on the pull request (format, lint, typecheck, build)
@@ -46,7 +46,7 @@ body:
     id: references
     attributes:
       label: References
-      description: "Optional. Link the parent epic, related issues or specs."
+      description: 'Optional. Link the parent epic, related issues or specs.'
       placeholder: |
         - Epic: #<N>
         - Related: #<N>
