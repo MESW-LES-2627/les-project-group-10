@@ -111,6 +111,13 @@ See [Deployment](docs/deployment.md) for the staging and production workflow.
 The server uses `compose.deploy.yml`; `docker-compose.yml` stays for local development.
 Server setup, GitHub branch settings and live checks must be completed separately.
 
+`main` remains the default branch and deploys production. Create feature and fix branches
+from `develop` and target `develop` in their pull requests. Merging into `develop` deploys
+staging. After staging checks pass, release with a reviewed pull request from `develop`
+into `main`. CI checks and unit tests run on pull requests into both branches. An admin
+must configure required reviews and CI checks; until then, the team checks them before
+merging. Deployment does not wait for CI automatically.
+
 ## Project tree
 
 ```

@@ -1,10 +1,10 @@
 # Deployment
 
-The deployment workflow maps `develop` to staging and `main` to production. It runs only when code is pushed to those branches. Release pull requests go from `develop` into `main`. The default branch and the rule requiring a teammate review are set in GitHub, not by the workflow.
+`main` stays the default branch and deploys production. `develop` deploys staging. Start feature and fix branches from `develop` and open their pull requests into `develop`. After testing staging, open a release pull request from `develop` into `main`. Check the target branch each time because GitHub may suggest `main`.
 
 Each app has a Docker image. The backend image contains the built app and the database migrations. The frontend image uses Nginx to serve the site, open React pages after a refresh, and send API requests to the backend.
 
-The workflow uses the server runner labelled `les-deploy`. It builds images for the exact commit and skips older runs when the branch has moved. It waits for the database, saves a backup, and runs migrations before replacing the apps. It then checks the site, API and database, including the public HTTPS pages. A failed step fails the release. A separate CI workflow checks pull requests into `main`. Deployments do not wait for CI.
+The deployment workflow runs on pushes to `develop` and `main`, using the server runner labelled `les-deploy`. It builds images for the exact commit and skips older runs. It waits for the database, saves a backup, and runs migrations before replacing the apps. It then checks the site, API and database, including public HTTPS. A separate CI workflow runs checks and unit tests on pull requests into both branches. Deployments do not wait for CI. Ask an admin to require a teammate review and passing CI on both branches. Until those rules are enforced, the team must check them before merging.
 
 The same Compose file runs as `les-staging` and `les-production`. Each has its own network, database volume and server secrets. Both use secure session cookies and Stripe test keys. The local development Compose file stays separate. No database port is opened on the server.
 

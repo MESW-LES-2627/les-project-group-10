@@ -16,6 +16,8 @@ Closes #
 
 ## Checklist
 
+- [ ] Target branch is correct: feature/fix PRs go to `develop`; releases go from `develop` to `main`
+- [ ] For a release, staging was checked and a teammate reviewed the changes
 - [ ] Tests added or updated (unit and integration); a bug fix includes a regression test
 - [ ] Documentation updated (`docs/`, module README or `CLAUDE.md` status), or not needed
 - [ ] CI is green (format, lint, typecheck, build, tests)
