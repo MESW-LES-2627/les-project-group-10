@@ -1,0 +1,36 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: les-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, les-deploy]
+    if: github.event.repository.private
+    steps:
+      - name: Check out the triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Deploy the current branch head
+        env:
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          case "$DEPLOY_BRANCH" in
+            develop) deployment_environment=staging ;;
+            main) deployment_environment=production ;;
+            *) exit 1 ;;
+          esac
+          bash scripts/deploy.sh deploy "$deployment_environment" "$DEPLOY_SHA"
