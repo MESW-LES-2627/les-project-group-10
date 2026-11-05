@@ -119,6 +119,10 @@ les-project-group-10/
 │   ├── db/
 │   │   ├── migrations/       # numbered .sql files, applied in order
 │   │   └── seed.sql          # sample mentors, safe to run again
+│   ├── tests/                # *.test.ts, one folder per feature (mirrors src/modules)
+│   │   ├── auth/
+│   │   ├── mentors/
+│   │   └── middleware/
 │   └── src/
 │       ├── app.ts            # builds the Express app (no listen)
 │       ├── server.ts         # starts the server
@@ -129,6 +133,10 @@ les-project-group-10/
 │           ├── mentors/
 │           └── bookings/     # checkout and Stripe payments
 └── frontend/                 # React 19 + Vite + Tailwind CSS v4
+    ├── tests/                # *.test.ts, one folder per src/lib/ file (mentor* files share one)
+    │   ├── auth/             # authRedirect.test.ts
+    │   ├── booking/
+    │   └── mentor/           # mentorProfile.test.ts, mentorSearch.test.ts
     └── src/
         ├── api/              # fetch helpers for the backend
         ├── auth/             # login state
@@ -139,14 +147,34 @@ les-project-group-10/
         └── routes/           # router
 ```
 
+## Testing
+
+Both packages use [Vitest](https://vitest.dev) for unit tests. Tests live under a top-level
+`tests/` folder in each package, mirroring the source they cover: backend tests are grouped by
+module, one subfolder per `src/modules/*` folder (for example `backend/tests/auth/password.test.ts`
+tests `backend/src/modules/auth/password.ts`); frontend tests are grouped by topic, one subfolder
+per `src/lib/*.ts` file, or per related group of files (`tests/mentor/` holds both
+`mentorProfile.test.ts` and `mentorSearch.test.ts`, since both test mentor-related helpers).
+
+```bash
+(cd backend && npm test)
+(cd frontend && npm test)
+```
+
+These are unit tests only: pure functions such as password hashing, session tokens, Zod schemas,
+and the frontend's `src/lib/` helpers (booking math, mentor search, redirects). There is no
+database, network, or rendering involved, and no Stripe calls are made.
+
 ## Useful commands
 
 | Where    | Command                                   | What it does                   |
 | -------- | ----------------------------------------- | ------------------------------ |
 | root     | `npm run format` / `npm run format:check` | Format / check formatting      |
 | backend  | `npm run lint` / `npm run typecheck`      | ESLint / TypeScript check      |
+| backend  | `npm test`                                | Run Vitest unit tests          |
 | backend  | `npm run db:migrate` / `npm run db:seed`  | Apply new migrations / seed    |
 | frontend | `npm run lint` / `npm run build`          | ESLint / type check and build  |
+| frontend | `npm test`                                | Run Vitest unit tests          |
 | root     | `docker compose down`                     | Stop the database (keeps data) |
 | root     | `docker compose down -v`                  | Stop and wipe the database     |
 
