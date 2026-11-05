@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Cancel the previous run of the same PR when a new commit is pushed.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+# The jobs to be executed
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+    run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: feup
+          POSTGRES_PASSWORD: feup
+          POSTGRES_DB: feup_connect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U feup -d feup_connect_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Dummy values only
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_URL: postgres://feup:feup@localhost:5432/feup_connect_test
+      JWT_SECRET: ci-only-jwt-secret-not-used-anywhere-else-0123456789
+      CLIENT_ORIGIN: http://localhost:5173
+      STRIPE_SECRET_KEY: sk_test_dummy_ci_key
+      STRIPE_PUBLISHABLE_KEY: pk_test_dummy_ci_key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      # The db scripts load ../.env with node's --env-file, which fails if the file is
+      # missing. Variables set in this job's env take precedence over the file's values.
+      - run: cp ../.env.example ../.env
+      - run: npm run db:migrate
+      # TODO: add npm test when Vitest is added
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+    run:
+      working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
