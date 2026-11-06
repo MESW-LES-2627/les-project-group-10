@@ -1,5 +1,5 @@
-import { apiGet, apiPost, ApiError } from './client';
-import { getInitials, tagsFromSkills } from '@/lib/mentorProfile';
+import { apiGet, apiPost, apiPut, ApiError } from './client';
+import { getInitials, tagsFromSkills, mentorBioExcerpt } from '@/lib/mentorProfile';
 import type { AvatarTone, TagTone } from '@/components/ui';
 
 export interface MentorService {
@@ -82,7 +82,6 @@ interface MentorProfileResponse {
   id: string;
   username: string;
   headline: string;
-  tagline: string;
   bio: string;
   location: string;
   languages: string[];
@@ -121,7 +120,7 @@ function toMentor(profile: MentorProfileResponse): Mentor {
     subjects: profile.subjects,
     skills: profile.skills,
     tags: tagsFromSkills(profile.skills, 8),
-    bio: profile.tagline || profile.bio,
+    bio: mentorBioExcerpt(profile.bio),
     about: profile.bio,
     experience: [],
     services: profile.services.map((service) => ({
@@ -168,7 +167,6 @@ export interface MentorOnboardingPayload {
   location: string;
   languages: string[];
   linkedinUrl: string;
-  tagline: string;
   headline: string;
   subjects: string[];
   skills: string[];
@@ -178,4 +176,30 @@ export interface MentorOnboardingPayload {
 
 export function completeMentorOnboarding(payload: MentorOnboardingPayload): Promise<void> {
   return apiPost('/api/mentors/me/onboarding', payload);
+}
+
+export interface EditableMentorProfile {
+  headline: string;
+  bio: string;
+  subjects: string[];
+  skills: string[];
+}
+
+export function getMentorProfileEditor(): Promise<{
+  profile: EditableMentorProfile;
+  subjectOptions: string[];
+}> {
+  return apiGet('/api/mentors/me/profile');
+}
+
+export function saveMentorProfile(profile: EditableMentorProfile): Promise<{
+  profile: EditableMentorProfile;
+}> {
+  const { headline, bio, subjects, skills } = profile;
+  return apiPut('/api/mentors/me/profile', {
+    headline,
+    bio,
+    subjects,
+    skills,
+  });
 }

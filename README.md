@@ -133,10 +133,15 @@ les-project-group-10/
 │           ├── mentors/
 │           └── bookings/     # checkout and Stripe payments
 └── frontend/                 # React 19 + Vite + Tailwind CSS v4
-    ├── tests/                # *.test.ts, one folder per src/lib/ file (mentor* files share one)
+    ├── tests/                # one folder per topic; unit and component tests for it share the folder
+    │   ├── setup.ts          # jest-dom matchers, RTL cleanup after each test
+    │   ├── support/
+    │   │   └── render.tsx    # renderWithProviders: wraps a component in MemoryRouter (+ AuthContext)
     │   ├── auth/             # authRedirect.test.ts
-    │   ├── booking/
-    │   └── mentor/           # mentorProfile.test.ts, mentorSearch.test.ts
+    │   ├── booking/          # booking.test.ts, BookingPanel.test.tsx
+    │   ├── mentor/           # mentorProfile/mentorSearch.test.ts, MentorFilters/MentorSearchResultCard.test.tsx
+    │   ├── button/           # Button.test.tsx
+    │   └── input/            # Input.test.tsx
     └── src/
         ├── api/              # fetch helpers for the backend
         ├── auth/             # login state
@@ -149,21 +154,55 @@ les-project-group-10/
 
 ## Testing
 
-Both packages use [Vitest](https://vitest.dev) for unit tests. Tests live under a top-level
-`tests/` folder in each package, mirroring the source they cover: backend tests are grouped by
+Both packages use [Vitest](https://vitest.dev) for tests. Tests live under a top-level `tests/`
+folder in each package, grouped by topic rather than by test type: backend tests are grouped by
 module, one subfolder per `src/modules/*` folder (for example `backend/tests/auth/password.test.ts`
-tests `backend/src/modules/auth/password.ts`); frontend tests are grouped by topic, one subfolder
-per `src/lib/*.ts` file, or per related group of files (`tests/mentor/` holds both
-`mentorProfile.test.ts` and `mentorSearch.test.ts`, since both test mentor-related helpers).
+tests `backend/src/modules/auth/password.ts`). Frontend tests are grouped by feature, and a unit
+test and the component test(s) for the same feature share one folder — `frontend/tests/mentor/`
+holds the `mentorProfile.ts`/`mentorSearch.ts` unit tests _and_ the `MentorFilters`/
+`MentorSearchResultCard` component tests, and `frontend/tests/booking/` holds both the `booking.ts`
+unit test and the `BookingPanel` component test.
 
 ```bash
 (cd backend && npm test)
 (cd frontend && npm test)
 ```
 
-These are unit tests only: pure functions such as password hashing, session tokens, Zod schemas,
-and the frontend's `src/lib/` helpers (booking math, mentor search, redirects). There is no
-database, network, or rendering involved, and no Stripe calls are made.
+Backend tests are unit tests only: pure functions such as password hashing, session tokens, and
+Zod schemas. There is no database or network involved, and no Stripe calls are made.
+
+Frontend tests are a mix of:
+
+- **Unit tests** for the `src/lib/` helpers (booking math, mentor search, redirects) — no rendering.
+- **Component tests**, using [React Testing Library](https://testing-library.com/react) and
+  [`@testing-library/user-event`](https://testing-library.com/docs/user-event/intro) against a
+  `jsdom` environment. They test what the user sees and does (rendered text, clicks, typed input),
+  not component internals. None of them call the real API — mock `fetch`, or pass data/callbacks
+  as props, instead.
+
+To write a new component test, add it to the `tests/<feature>/` folder for the component it covers
+(or make a new one, named after the feature, if it doesn't fit an existing one) and render through
+the shared helper:
+
+```tsx
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from '../support/render';
+import { MyComponent } from '@/components/.../MyComponent';
+
+renderWithProviders(<MyComponent />);
+// or, for a page/link that needs a starting route or a logged-in user:
+renderWithProviders(<MyComponent />, { route: '/mentors/123', authValue: fakeAuthValue });
+```
+
+`renderWithProviders` (in `frontend/tests/support/render.tsx`) always wraps the component in a
+`MemoryRouter`, since most components use `Link` or router hooks, and optionally in an
+`AuthContext.Provider` when an `authValue` is passed, for components that call `useAuth()`.
+`frontend/tests/setup.ts` registers the `jest-dom` matchers (`toBeInTheDocument`, `toHaveValue`,
+...) and runs Testing Library's `cleanup()` after every test.
+
+**Node version note:** `jsdom` is pinned to `^24.x` rather than its latest major, because newer
+`jsdom` releases require Node's `require(esm)` support (stable from Node 22.12), which breaks on
+Node versions below that with an `ERR_REQUIRE_ESM` error from one of jsdom's CSS dependencies.
 
 ## Useful commands
 

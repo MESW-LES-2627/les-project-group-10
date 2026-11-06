@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Clock, ShieldCheck, Sparkles } from 'lucide-react';
 import { Avatar, Tag, buttonVariants } from '@/components/ui';
 // import { OnboardingTopBar } from '@/layouts/OnboardingTopBar';
+import { useAuth } from '@/auth/useAuth';
 import { useMentorOnboarding } from './useMentorOnboarding';
 import { getInitials, lowestServicePrice, pluralize, tagsFromSkills } from '@/lib/mentorProfile';
 
@@ -17,6 +18,7 @@ const WHILE_YOU_WAIT = [
  */
 export default function MentorPendingVerificationPage() {
   const { data } = useMentorOnboarding();
+  const { user } = useAuth();
 
   const firstName = data.fullName.trim().split(/\s+/)[0] ?? '';
   const tags = tagsFromSkills(data.skills);
@@ -100,10 +102,7 @@ export default function MentorPendingVerificationPage() {
                 Visible to students only after verification
               </p>
             </div>
-            <Link
-              to="/mentor-onboarding/profile"
-              className="font-sans text-sm font-medium text-secondary"
-            >
+            <Link to="/dashboard/profile" className="font-sans text-sm font-medium text-secondary">
               Edit profile
             </Link>
           </div>
@@ -111,7 +110,7 @@ export default function MentorPendingVerificationPage() {
 
         <div className="flex w-full flex-col gap-3 sm:flex-row">
           <Link
-            to="/mentors"
+            to={user ? `/mentors/${user.id}` : '/login'}
             className={buttonVariants({
               variant: 'outlined',
               fullWidth: true,
@@ -121,7 +120,7 @@ export default function MentorPendingVerificationPage() {
             Preview my public profile
           </Link>
           <Link
-            to="/"
+            to="/dashboard"
             className={buttonVariants({ variant: 'blue', fullWidth: true, className: 'sm:flex-1' })}
           >
             Go to dashboard

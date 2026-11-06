@@ -57,7 +57,6 @@ export function toOnboardingPayload(data: MentorOnboardingData): MentorOnboardin
     location: data.location,
     languages: data.languages,
     linkedinUrl: data.linkedIn,
-    tagline: data.tagline,
     headline: data.headline,
     subjects: data.subjects,
     skills: data.skills,
@@ -69,4 +68,10 @@ export function toOnboardingPayload(data: MentorOnboardingData): MentorOnboardin
     })),
     bio: data.bio,
   };
+}
+
+/** Compact card copy derived from the same biography shown on the full profile. */
+export function mentorBioExcerpt(bio: string): string {
+  const text = bio.trim().replace(/\s+/g, ' ');
+  return text.length > 160 ? `${text.slice(0, 159).trimEnd()}…` : text;
 }

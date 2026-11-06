@@ -20,7 +20,7 @@ const SUBJECT_OPTIONS = [
 ];
 
 const MAX_SUBJECTS = 4;
-const MAX_BIO_LENGTH = 600;
+const MAX_BIO_LENGTH = 1000;
 
 /**
  * Mentor onboarding step 2 of 3: headline, subjects, skills,
@@ -75,6 +75,7 @@ export default function MentorExpertiseStep() {
           type="text"
           label="Professional headline"
           placeholder="Senior Software Engineer · Critical TechWorks"
+          maxLength={120}
           leadingIcon={<Briefcase className="size-5" />}
           value={data.headline}
           onChange={(event) => updateData({ headline: event.target.value })}
@@ -104,7 +105,7 @@ export default function MentorExpertiseStep() {
 
         <Textarea
           label="About you"
-          placeholder="Share your background and how you help students."
+          placeholder="Share your experience, background and how you can help students."
           hint={`${data.bio.length} / ${MAX_BIO_LENGTH}`}
           value={data.bio}
           maxLength={MAX_BIO_LENGTH}

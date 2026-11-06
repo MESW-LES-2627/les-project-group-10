@@ -5,7 +5,7 @@ import type { Mentor } from '@/api/mentors';
 import { gatePath } from '@/lib/auth';
 
 /**
- * Large mentor card used in search results: full bio, tags, and a
+ * Large mentor card used in search results: biography excerpt, tags, and a
  * booking column with the lowest price and next available slot.
  */
 export function MentorSearchResultCard({ mentor }: { mentor: Mentor }) {
@@ -35,7 +35,7 @@ export function MentorSearchResultCard({ mentor }: { mentor: Mentor }) {
               {mentor.location} · {mentor.languages}
             </p>
           </div>
-          <p className="font-sans text-sm text-ink-soft">{mentor.bio}</p>
+          <p className="line-clamp-3 break-words font-sans text-sm text-ink-soft">{mentor.bio}</p>
           <div className="flex flex-wrap gap-2">
             {mentor.tags.map((tag) => (
               <Tag key={tag.label} label={tag.label} tone={tag.tone} />
