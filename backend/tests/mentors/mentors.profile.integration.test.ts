@@ -21,7 +21,6 @@ const categoryNames = [`Profile ${randomUUID()}`, `Profile ${randomUUID()}`].sor
 const valid = {
   headline: 'Engineer',
   bio: 'Mentoring students',
-  professionalBackground: 'MSc\nSoftware engineer',
   subjects: [categoryNames[0]],
   skills: ['TypeScript'],
 };
@@ -30,6 +29,7 @@ let origin: string;
 let serviceId: string;
 let bookingId: string;
 let baseline: unknown;
+const registeredIds: string[] = [];
 
 function request(
   path: string,
@@ -54,7 +54,7 @@ async function profile(id = ids.owner) {
 async function unrelatedRecords() {
   const { rows } = await pool.query(
     `SELECT row_to_json(s) AS service, row_to_json(b) AS booking,
-    row_to_json(p) AS payment, row_to_json(slot) AS slot, m.onboarding_finished
+    row_to_json(p) AS payment, row_to_json(slot) AS slot, m.onboarding_finished, m.tagline, m.professional_background
     FROM service s JOIN mentor m ON m.user_id = s.mentor_id
     JOIN booking b ON b.service_id = s.id JOIN payment p ON p.booking_id = b.id
     JOIN mentor_availability_slot slot ON slot.id = b.availability_slot_id WHERE s.id = $1`,
@@ -103,6 +103,10 @@ beforeAll(async () => {
     "INSERT INTO payment (booking_id,amount_cents,status) VALUES ($1,3150,'succeeded')",
     [bookingId],
   );
+  await pool.query(
+    "UPDATE mentor SET tagline = 'Legacy intro', professional_background = 'Legacy background' WHERE user_id = $1",
+    [ids.owner],
+  );
   baseline = await unrelatedRecords();
   server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -122,7 +126,9 @@ afterAll(async () => {
     await pool.query('DELETE FROM payment WHERE booking_id = $1', [bookingId]);
     await pool.query('DELETE FROM booking WHERE id = $1', [bookingId]);
   }
-  await pool.query('DELETE FROM "user" WHERE id = ANY($1::uuid[])', [Object.values(ids)]);
+  await pool.query('DELETE FROM "user" WHERE id = ANY($1::uuid[])', [
+    [...Object.values(ids), ...registeredIds],
+  ]);
   await pool.query('DELETE FROM category WHERE name = ANY($1::text[])', [categoryNames]);
   await pool.end();
 });
@@ -135,7 +141,6 @@ describe('mentor profile HTTP and persistence', () => {
     expect(result.profile).toEqual({
       headline: 'Original headline',
       bio: 'Original bio',
-      professionalBackground: '',
       subjects: [categoryNames[0]],
       skills: [],
     });
@@ -185,7 +190,6 @@ describe('mentor profile HTTP and persistence', () => {
 
   it.each([
     { bio: ' ' },
-    { professionalBackground: '' },
     { subjects: ['Missing category'] },
     { subjects: Array(5).fill(categoryNames[0]) },
     { skills: ['a'.repeat(41)] },
@@ -274,6 +278,62 @@ describe('mentor profile HTTP and persistence', () => {
       expect((await request(`/mentors/${id}`)).status).toBe(404);
     },
   );
+
+  it('collects the biography once during onboarding and keeps the same text editable', async () => {
+    const email = `${randomUUID()}@example.com`;
+    const registration = await request(
+      '/auth/register-mentor',
+      undefined,
+      {
+        username: 'New Mentor',
+        email,
+        password: 'ProfileTest123!',
+      },
+      'POST',
+    );
+    expect(registration.status).toBe(201);
+    const id = (await registration.json()).user.id;
+    registeredIds.push(id);
+    const initial = await pool.query(
+      'SELECT bio, onboarding_finished FROM mentor WHERE user_id = $1',
+      [id],
+    );
+    expect(initial.rows).toEqual([{ bio: '', onboarding_finished: false }]);
+    expect((await request(`/mentors/${id}`)).status).toBe(404);
+    const onboarding = {
+      username: 'New Mentor',
+      location: 'Porto',
+      languages: ['English'],
+      linkedinUrl: '',
+      headline: 'Engineer',
+      bio: 'My experience, background and how I help students.',
+      subjects: [categoryNames[0]],
+      skills: ['React'],
+      services: [
+        {
+          title: 'Mentoring',
+          description: 'Review software design together.',
+          priceCents: 3000,
+          durationMinutes: 60,
+        },
+      ],
+    };
+    expect((await request('/mentors/me/onboarding', id, onboarding, 'POST')).status).toBe(204);
+    expect(await profile(id)).toEqual({
+      headline: onboarding.headline,
+      bio: onboarding.bio,
+      subjects: onboarding.subjects,
+      skills: onboarding.skills,
+    });
+    const update = { ...valid, bio: 'Updated biography with work and education.' };
+    expect((await request('/mentors/me/profile', id, update)).status).toBe(200);
+    expect(await profile(id)).toEqual(update);
+    const visible = (await (await request(`/mentors/${id}`)).json()).mentor;
+    expect(visible.bio).toBe(update.bio);
+    expect(visible.services[0].description).toBe(onboarding.services[0].description);
+    expect(visible).not.toHaveProperty('tagline');
+    expect(visible).not.toHaveProperty('professionalBackground');
+  });
 
   it('reruns the migration runner without changing saved profiles', async () => {
     const previous = await profile();

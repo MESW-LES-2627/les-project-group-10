@@ -6,25 +6,30 @@ successful save persists across refresh and a new sign-in.
 
 ## Fields and behavior
 
-| Field                   | Validation                                                                    |
-| ----------------------- | ----------------------------------------------------------------------------- |
-| Professional headline   | Required, 1–120 characters                                                    |
-| Biography               | Required, 1–1000 characters                                                   |
-| Professional background | Required on editor save, 1–2000 characters; plain-text work/education summary |
-| Subjects                | 1–4 distinct existing database category names                                 |
-| Skills                  | Optional, at most 15 entries, 1–40 characters each; enter one per line        |
+| Field                 | Validation                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| Professional headline | Required, 1–120 characters                                                            |
+| About you             | Required, 1–1000 characters; experience, background and how the mentor helps students |
+| Subjects              | 1–4 distinct existing database category names                                         |
+| Skills                | Optional, at most 15 entries, 1–40 characters each; enter one per line                |
 
 Text is trimmed on the server. Duplicate skills are collapsed case-insensitively, keeping the first
 spelling. Category options come from the database. The UI shows validation errors, prevents repeated
-submissions while saving, retains the draft after errors and resets it to the last saved snapshot
-when **Cancel changes** is selected.
+submissions while saving, retains the draft after errors and discards unsaved changes
+when **Cancel** is selected. Cancel returns to the public profile without saving, even if the draft
+is invalid. A successful save returns to the public profile after the API confirms the update.
 
-Existing mentors have an empty professional background until they fill it in. Their public profiles
-remain readable, and the background section is hidden when empty. Onboarding still works without
-supplying this field. Saving the editor requires completing it.
+Mentor signup collects only account details (name, email and password). Onboarding collects the
+professional headline and **About you** biography once. The editor uses the same labels and limits.
+Service names and descriptions remain separate because they describe individual sessions.
+
+The separate signup short bio, one-line intro and professional-background inputs have been removed.
+Directory cards derive a whitespace-normalized excerpt of up to 160 characters from the saved
+biography, with a three-line display limit. Public profiles show the complete biography, including
+its line breaks. Updating **About you** therefore updates both views after reload.
 
 Public profiles at `/mentors/:mentorId` allow anonymous visitors and show all subjects and skills.
-Biography and background are rendered as text with line breaks, never interpreted as HTML. Profiles
+The biography is rendered as text with line breaks, never interpreted as HTML. Profiles
 with no services remain readable. Checkout and editing require authentication. Incomplete, banned
 and deleted accounts remain hidden from public profile APIs.
 
@@ -46,7 +51,6 @@ banned/deleted-account checks apply. Accounts with both student and mentor roles
   "profile": {
     "headline": "Software engineer",
     "bio": "I help students learn.",
-    "professionalBackground": "MSc in Software Engineering.",
     "subjects": ["Software Engineering"],
     "skills": ["TypeScript"]
   },
@@ -54,7 +58,7 @@ banned/deleted-account checks apply. Accounts with both student and mentor roles
 }
 ```
 
-`PUT /api/mentors/me/profile` accepts exactly the five properties inside `profile` above as its body
+`PUT /api/mentors/me/profile` accepts exactly the four properties inside `profile` above as its body
 and returns `{ "profile": { ... } }` with normalized saved values. Unknown properties are rejected.
 Invalid fields or category names return `400 validation_error`, using the standard error shape:
 
@@ -63,7 +67,7 @@ Invalid fields or category names return `400 validation_error`, using the standa
   "error": {
     "code": "validation_error",
     "message": "Invalid input",
-    "fields": { "bio": "Bio is required" }
+    "fields": { "bio": "About you is required" }
   }
 }
 ```
@@ -72,19 +76,21 @@ Profile columns and category links are replaced in one transaction, with a mento
 serialize simultaneous saves. Last successful save wins. Failed transactions roll back the entire
 update. A lost network response may occur after a commit; the UI offers retry/reload without claiming
 that a transport failure proves the database was unchanged. Private and public profile responses use
-`Cache-Control: no-store`. Public list/detail responses include `professionalBackground`.
+`Cache-Control: no-store`. Public list/detail responses use `bio` for the biography; they no longer
+return `tagline` or `professionalBackground`.
 
 ## Migration and local checks
 
-Use Node 22+. Apply `008_mentor_professional_background.sql` through the existing migration runner
-before starting the updated backend:
+Use Node 22+. Keep the normal migration runner up to date:
 
 ```bash
 npm --prefix backend run db:migrate
 ```
 
-The migration adds a non-null text column with an empty default, preserving existing profiles and
-onboarding. Do not modify old migrations or reverse the additive migration for a code rollback.
+This simplification requires no new schema migration. Existing `tagline` and
+`professional_background` columns and their values are retained unchanged for compatibility; current
+forms and APIs no longer read or write them. They are not automatically merged into the biography.
+Do not edit or reverse applied migrations, including `008_mentor_professional_background.sql`.
 
 Unit and component tests:
 

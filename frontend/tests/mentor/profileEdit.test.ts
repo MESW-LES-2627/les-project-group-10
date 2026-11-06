@@ -7,7 +7,6 @@ import { matchesMentorSearch } from '@/lib/mentorSearch';
 const profile = {
   headline: 'Engineer',
   bio: 'Biography',
-  professionalBackground: 'Background',
   subjects: ['Physics'],
   skills: ['React'],
 };
@@ -51,12 +50,12 @@ describe('profile editor API', () => {
     });
     await expect(saveMentorProfile(profile)).rejects.toBeInstanceOf(ApiError);
   });
-  it('maps public background and updated searchable expertise, retaining legacy compatibility', async () => {
+  it('derives cards from the biography and maps updated searchable expertise', async () => {
     const raw = {
       id: 'mentor',
       username: 'Jane',
       headline: 'Engineer',
-      tagline: '',
+      tagline: 'Old summary that must not override the biography',
       bio: 'Bio',
       location: '',
       languages: [],
@@ -71,14 +70,9 @@ describe('profile editor API', () => {
       .mockImplementation(async () => new Response(JSON.stringify({ mentor: raw })));
     vi.stubGlobal('fetch', fetch);
     const legacy = await getMentorById('mentor');
-    expect(legacy?.professionalBackground).toBe('');
+    expect(legacy?.bio).toBe('Bio');
+    expect(legacy?.about).toBe('Bio');
     expect(matchesMentorSearch(legacy!, 'algebra mathematics')).toBe(true);
-    fetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ mentor: { ...raw, professionalBackground: 'Saved background' } }),
-      ),
-    );
-    expect((await getMentorById('mentor'))?.professionalBackground).toBe('Saved background');
   });
 });
 
@@ -89,7 +83,6 @@ describe('profile draft validation', () => {
         ...profile,
         headline: 'x'.repeat(120),
         bio: 'x'.repeat(1000),
-        professionalBackground: 'x'.repeat(2000),
         skills: [],
       }),
     ).toEqual({});
@@ -97,7 +90,6 @@ describe('profile draft validation', () => {
   it.each([
     { headline: ' ' },
     { bio: 'x'.repeat(1001) },
-    { professionalBackground: '' },
     { subjects: [] },
     { subjects: ['A', 'B', 'C', 'D', 'E'] },
     { skills: [' '] },

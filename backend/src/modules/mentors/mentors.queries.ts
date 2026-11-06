@@ -28,7 +28,7 @@ export async function completeOnboarding(
   await client.query(
     `UPDATE mentor
         SET headline = $2, bio = $3, location = $4, languages = $5, skills = $6,
-            tagline = $7, linkedin_url = $8, onboarding_finished = true
+            linkedin_url = $7, onboarding_finished = true
       WHERE user_id = $1`,
     [
       userId,
@@ -37,7 +37,6 @@ export async function completeOnboarding(
       input.location,
       input.languages,
       input.skills,
-      input.tagline,
       input.linkedinUrl || null,
     ],
   );
@@ -68,9 +67,7 @@ type MentorRow = {
   id: string;
   username: string;
   headline: string | null;
-  tagline: string | null;
   bio: string;
-  professional_background: string;
   subjects: string[];
   location: string | null;
   languages: string[];
@@ -90,8 +87,8 @@ type ServiceRow = {
 // banned, deleted or still in onboarding looks the same as an id that does not exist.
 export async function findPublicMentor(id: string) {
   const { rows } = await pool.query<MentorRow>(
-    `SELECT m.user_id AS id, u.username, m.headline, m.tagline, m.bio, m.location,
-            m.languages, m.linkedin_url, m.skills, m.professional_background,
+    `SELECT m.user_id AS id, u.username, m.headline, m.bio, m.location,
+            m.languages, m.linkedin_url, m.skills,
             ARRAY(SELECT c.name FROM mentor_category mc
                   JOIN category c ON c.id = mc.category_id
                   WHERE mc.mentor_id = m.user_id ORDER BY c.name) AS subjects
@@ -138,9 +135,7 @@ export async function findPublicMentor(id: string) {
     id: mentor.id,
     username: mentor.username,
     headline: mentor.headline ?? '',
-    tagline: mentor.tagline ?? '',
     bio: mentor.bio,
-    professionalBackground: mentor.professional_background,
     location: mentor.location ?? '',
     languages: mentor.languages,
     linkedinUrl: mentor.linkedin_url ?? '',
@@ -171,7 +166,7 @@ export async function findPublicMentors() {
 
 async function findEditableProfile(client: PoolClient, userId: string) {
   const { rows } = await client.query<MentorProfileInput & { onboardingFinished: boolean }>(
-    `SELECT headline, bio, professional_background AS "professionalBackground", skills,
+    `SELECT headline, bio, skills,
             onboarding_finished AS "onboardingFinished",
             ARRAY(SELECT c.name FROM mentor_category mc
                   JOIN category c ON c.id = mc.category_id
@@ -212,9 +207,9 @@ export async function updateMentorProfile(
     });
   }
   await client.query(
-    `UPDATE mentor SET headline = $2, bio = $3, professional_background = $4, skills = $5
+    `UPDATE mentor SET headline = $2, bio = $3, skills = $4
       WHERE user_id = $1`,
-    [userId, input.headline, input.bio, input.professionalBackground, input.skills],
+    [userId, input.headline, input.bio, input.skills],
   );
   await client.query('DELETE FROM mentor_category WHERE mentor_id = $1', [userId]);
   await client.query(

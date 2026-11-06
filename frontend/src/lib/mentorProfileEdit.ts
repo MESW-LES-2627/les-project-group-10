@@ -4,8 +4,7 @@ export function validateMentorProfile(profile: EditableMentorProfile): Record<st
   const errors: Record<string, string> = {};
   for (const [field, label, max] of [
     ['headline', 'Professional headline', 120],
-    ['bio', 'Biography', 1000],
-    ['professionalBackground', 'Professional background', 2000],
+    ['bio', 'About you', 1000],
   ] as const) {
     if (!profile[field].trim()) errors[field] = `${label} is required`;
     else if (profile[field].trim().length > max) errors[field] = `${label} is too long`;

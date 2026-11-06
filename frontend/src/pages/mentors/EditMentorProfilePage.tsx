@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { ApiError } from '@/api/client';
 import { getMentorProfileEditor, saveMentorProfile } from '@/api/mentors';
 import type { EditableMentorProfile } from '@/api/mentors';
@@ -28,7 +28,8 @@ export default function EditMentorProfilePage() {
 }
 
 function ProfileEditor({ userId }: { userId: string }) {
-  const [saved, setSaved] = useState<EditableMentorProfile | null>(null);
+  const navigate = useNavigate();
+  const profilePath = `/mentors/${userId}`;
   const [draft, setDraft] = useState<EditableMentorProfile | null>(null);
   const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
@@ -53,7 +54,6 @@ function ProfileEditor({ userId }: { userId: string }) {
     getMentorProfileEditor()
       .then((data) => {
         if (cancelled) return;
-        setSaved(data.profile);
         setDraft(data.profile);
         setSubjectOptions(data.subjectOptions);
       })
@@ -69,7 +69,7 @@ function ProfileEditor({ userId }: { userId: string }) {
   }, [attempt]);
 
   useEffect(() => {
-    if (message && message !== 'Profile saved.') {
+    if (message) {
       errorSummary.current?.focus();
     }
   }, [message, errors]);
@@ -87,11 +87,9 @@ function ProfileEditor({ userId }: { userId: string }) {
     submitting.current = true;
     setSaving(true);
     try {
-      const result = await saveMentorProfile(draft);
+      await saveMentorProfile(draft);
       if (!mounted.current) return;
-      setSaved(result.profile);
-      setDraft(result.profile);
-      setMessage('Profile saved.');
+      navigate(profilePath);
     } catch (error) {
       if (!mounted.current) return;
       if (error instanceof ApiError) {
@@ -139,7 +137,7 @@ function ProfileEditor({ userId }: { userId: string }) {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 lg:px-8">
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-display text-3xl font-semibold text-ink">Edit public profile</h1>
-        <Link to={`/mentors/${userId}`} className="text-secondary underline">
+        <Link to={profilePath} className="text-secondary underline">
           View profile
         </Link>
       </div>
@@ -147,11 +145,7 @@ function ProfileEditor({ userId }: { userId: string }) {
         Keep your expertise up to date. All fields except skills are required.
       </p>
       {message && (
-        <p
-          ref={errorSummary}
-          tabIndex={-1}
-          role={message === 'Profile saved.' ? 'status' : 'alert'}
-        >
+        <p ref={errorSummary} tabIndex={-1} role="alert">
           {message}
         </p>
       )}
@@ -160,10 +154,13 @@ function ProfileEditor({ userId }: { userId: string }) {
           Sign in again or reload your account
         </Link>
       )}
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-6 rounded-2xl border border-line bg-surface p-6"
+      >
         <fieldset
           disabled={saving || accessError}
-          className="flex min-w-0 flex-col gap-6 rounded-2xl border border-line bg-surface p-6 disabled:opacity-70"
+          className="flex min-w-0 flex-col gap-6 disabled:opacity-70"
         >
           <Input
             label="Professional headline"
@@ -174,7 +171,8 @@ function ProfileEditor({ userId }: { userId: string }) {
             onChange={(event) => update({ headline: event.target.value })}
           />
           <Textarea
-            label="Biography"
+            label="About you"
+            placeholder="Share your experience, background and how you can help students."
             value={draft.bio}
             maxLength={1000}
             required
@@ -182,20 +180,6 @@ function ProfileEditor({ userId }: { userId: string }) {
             error={errors.bio}
             onChange={(event) => update({ bio: event.target.value })}
           />
-          <Textarea
-            label="Professional background"
-            value={draft.professionalBackground}
-            maxLength={2000}
-            required
-            hint={`${draft.professionalBackground.length}/2000`}
-            error={errors.professionalBackground}
-            onChange={(event) => update({ professionalBackground: event.target.value })}
-          />
-          {!saved?.professionalBackground && (
-            <p className="text-sm text-ink-muted">
-              Add your work or education background before saving your profile.
-            </p>
-          )}
           <div
             role="group"
             aria-labelledby="subjects-label"
@@ -237,21 +221,20 @@ function ProfileEditor({ userId }: { userId: string }) {
               update({ skills: event.target.value === '' ? [] : event.target.value.split('\n') })
             }
           />
-          <div className="flex gap-3">
-            <Button type="submit">{saving ? 'Saving…' : 'Save profile'}</Button>
-            <Button
-              type="button"
-              variant="outlined"
-              onClick={() => {
-                setDraft(saved);
-                setErrors({});
-                setMessage('');
-              }}
-            >
-              Cancel changes
-            </Button>
-          </div>
         </fieldset>
+        <div className="flex gap-3">
+          <Button type="submit" disabled={saving || accessError}>
+            {saving ? 'Saving…' : 'Save profile'}
+          </Button>
+          <Button
+            type="button"
+            variant="outlined"
+            disabled={saving}
+            onClick={() => navigate(profilePath)}
+          >
+            Cancel
+          </Button>
+        </div>
       </form>
     </div>
   );

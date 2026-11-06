@@ -279,16 +279,6 @@ export default function MentorProfilePage() {
               <p className="whitespace-pre-wrap font-sans text-base leading-relaxed text-ink-soft">
                 {mentor.about}
               </p>
-              {mentor.professionalBackground && (
-                <div className="flex flex-col gap-2">
-                  <h3 className="font-display text-xl font-semibold text-ink">
-                    Professional background
-                  </h3>
-                  <p className="whitespace-pre-wrap font-sans text-base text-ink-soft">
-                    {mentor.professionalBackground}
-                  </p>
-                </div>
-              )}
               <div>
                 <h3 className="font-sans text-sm font-semibold text-ink">Subject areas</h3>
                 <ul className="flex flex-wrap gap-3">

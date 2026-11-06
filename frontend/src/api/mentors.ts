@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut, ApiError } from './client';
-import { getInitials, tagsFromSkills } from '@/lib/mentorProfile';
+import { getInitials, tagsFromSkills, mentorBioExcerpt } from '@/lib/mentorProfile';
 import type { AvatarTone, TagTone } from '@/components/ui';
 
 export interface MentorService {
@@ -64,7 +64,6 @@ export interface Mentor {
   tags: MentorTag[];
   bio: string;
   about: string;
-  professionalBackground: string;
   experience: MentorExperience[];
   services: MentorService[];
   posts: MentorPost[];
@@ -83,9 +82,7 @@ interface MentorProfileResponse {
   id: string;
   username: string;
   headline: string;
-  tagline: string;
   bio: string;
-  professionalBackground?: string;
   location: string;
   languages: string[];
   linkedinUrl: string;
@@ -123,9 +120,8 @@ function toMentor(profile: MentorProfileResponse): Mentor {
     subjects: profile.subjects,
     skills: profile.skills,
     tags: tagsFromSkills(profile.skills, 8),
-    bio: profile.tagline || profile.bio,
+    bio: mentorBioExcerpt(profile.bio),
     about: profile.bio,
-    professionalBackground: profile.professionalBackground ?? '',
     experience: [],
     services: profile.services.map((service) => ({
       id: service.id,
@@ -171,7 +167,6 @@ export interface MentorOnboardingPayload {
   location: string;
   languages: string[];
   linkedinUrl: string;
-  tagline: string;
   headline: string;
   subjects: string[];
   skills: string[];
@@ -186,7 +181,6 @@ export function completeMentorOnboarding(payload: MentorOnboardingPayload): Prom
 export interface EditableMentorProfile {
   headline: string;
   bio: string;
-  professionalBackground: string;
   subjects: string[];
   skills: string[];
 }
@@ -201,11 +195,10 @@ export function getMentorProfileEditor(): Promise<{
 export function saveMentorProfile(profile: EditableMentorProfile): Promise<{
   profile: EditableMentorProfile;
 }> {
-  const { headline, bio, professionalBackground, subjects, skills } = profile;
+  const { headline, bio, subjects, skills } = profile;
   return apiPut('/api/mentors/me/profile', {
     headline,
     bio,
-    professionalBackground,
     subjects,
     skills,
   });

@@ -4,7 +4,6 @@ import { mentorProfileSchema } from '../../src/modules/mentors/mentors.schemas.j
 const valid = {
   headline: 'Engineer',
   bio: 'I help students.',
-  professionalBackground: 'Software engineer\nMSc in computing',
   subjects: ['Software Engineering'],
   skills: ['TypeScript'],
 };
@@ -21,7 +20,6 @@ describe('mentorProfileSchema', () => {
         ...valid,
         headline: 'a'.repeat(120),
         bio: 'a'.repeat(1000),
-        professionalBackground: 'a'.repeat(2000),
         skills: [],
       }).success,
     ).toBe(true);
@@ -34,9 +32,6 @@ describe('mentorProfileSchema', () => {
     { bio: undefined },
     { bio: '\n ' },
     { bio: 'a'.repeat(1001) },
-    { professionalBackground: undefined },
-    { professionalBackground: ' ' },
-    { professionalBackground: 'a'.repeat(2001) },
     { subjects: [] },
     { subjects: ['A', 'B', 'C', 'D', 'E'] },
     { subjects: ['A', ' A '] },
@@ -45,6 +40,8 @@ describe('mentorProfileSchema', () => {
     { skills: ['a'.repeat(41)] },
     { skills: Array(16).fill('SQL') },
     { skills: 'SQL' },
+    { professionalBackground: 'Retired input' },
+    { tagline: 'Retired input' },
     { userId: 'another-user' },
     { services: [] },
     { onboardingFinished: false },

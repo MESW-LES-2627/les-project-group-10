@@ -13,7 +13,6 @@ const validInput = {
   location: 'Porto, Portugal',
   languages: ['English'],
   linkedinUrl: '',
-  tagline: 'I help you land your first job.',
   headline: 'Senior Software Engineer',
   subjects: ['Software Engineering'],
   skills: ['TypeScript'],
