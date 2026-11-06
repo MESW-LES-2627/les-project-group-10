@@ -49,3 +49,25 @@ export const mentorOnboardingSchema = z.object({
 });
 
 export type MentorOnboardingInput = z.infer<typeof mentorOnboardingSchema>;
+
+export const mentorProfileSchema = z.strictObject({
+  headline: mentorOnboardingSchema.shape.headline,
+  bio: mentorOnboardingSchema.shape.bio,
+  professionalBackground: z
+    .string()
+    .trim()
+    .min(1, 'Professional background is required')
+    .max(2000, 'Professional background must have at most 2000 characters'),
+  subjects: mentorOnboardingSchema.shape.subjects.refine(
+    (subjects) => new Set(subjects).size === subjects.length,
+    'Choose each subject only once',
+  ),
+  skills: mentorOnboardingSchema.shape.skills.transform((skills) =>
+    skills.filter(
+      (skill, index) =>
+        skills.findIndex((candidate) => candidate.toLowerCase() === skill.toLowerCase()) === index,
+    ),
+  ),
+});
+
+export type MentorProfileInput = z.infer<typeof mentorProfileSchema>;

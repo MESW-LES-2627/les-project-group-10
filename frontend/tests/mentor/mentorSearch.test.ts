@@ -23,6 +23,7 @@ function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
     tags: [],
     bio: 'Bio',
     about: 'About',
+    professionalBackground: '',
     experience: [],
     services: [
       {
