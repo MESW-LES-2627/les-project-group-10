@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
+import EditMentorProfilePage from '@/pages/mentors/EditMentorProfilePage';
 import LandingPage from '@/pages/landing/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
@@ -46,14 +47,18 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
+  {
+    path: '/dashboard/profile',
+    element: (
+      <RequireAuth>
+        <EditMentorProfilePage />
+      </RequireAuth>
+    ),
+  },
   { path: '/mentors', element: <FindMentorsPage /> },
   {
     path: '/mentors/:mentorId',
-    element: (
-      <RequireAuth>
-        <MentorProfilePage />
-      </RequireAuth>
-    ),
+    element: <MentorProfilePage />,
   },
   {
     path: '/mentors/:mentorId/checkout',

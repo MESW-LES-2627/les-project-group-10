@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Briefcase, Eye, EyeOff, GraduationCap, Lock, Mail, User } from 'lucide-react';
-import { Button, Checkbox, Input, Textarea } from '@/components/ui';
+import { Button, Checkbox, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { RoleOptionCard } from '@/components/auth/RoleOptionCard';
 import { ApiError } from '@/api/client';
@@ -12,8 +12,7 @@ type Role = 'student' | 'mentor';
 
 /**
  * `/signup` screen: role picker plus account form inside the shared
- * AuthLayout. Mentors also write a short bio, which the backend needs
- * to create their mentor profile.
+ * AuthLayout. Mentor profile details are collected during onboarding.
  */
 export default function SignUpPage() {
   const navigate = useNavigate();
@@ -22,11 +21,10 @@ export default function SignUpPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [bio, setBio] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // messages the API attaches to a field (username, email, password, bio)
+  // messages the API attaches to a field (username, email, password)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // anything that belongs to the whole form (server down, unexpected error)
   const [formError, setFormError] = useState('');
@@ -40,7 +38,7 @@ export default function SignUpPage() {
     try {
       const account = { username: fullName, email, password };
       if (role === 'mentor') {
-        await registerMentor({ ...account, bio });
+        await registerMentor(account);
         navigate('/mentor-onboarding/profile');
       } else {
         await registerStudent(account);
@@ -134,19 +132,6 @@ export default function SignUpPage() {
             maxLength={72}
             required
           />
-          {role === 'mentor' && (
-            <Textarea
-              name="bio"
-              label="Short bio"
-              hint={`${bio.length}/1000`}
-              placeholder="Tell students what you can help them with."
-              value={bio}
-              onChange={(event) => setBio(event.target.value)}
-              error={fieldErrors.bio}
-              maxLength={1000}
-              required
-            />
-          )}
         </div>
 
         <Checkbox

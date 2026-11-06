@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { NavBar } from '@/components/layout/NavBar';
+import { Footer } from '@/components/layout/Footer';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -97,25 +100,27 @@ export default function MentorProfilePage() {
 
   if (missing) {
     return (
-      <DashboardLayout title="Mentor profile">
+      <ProfileLayout title="Mentor profile">
         <div className="mx-auto flex max-w-lg flex-col items-start gap-4 px-4 py-16 lg:px-8">
           <h1 className="font-display text-4xl font-bold tracking-tight text-ink">
             Mentor not found
           </h1>
-          <Link to="/dashboard/mentors" className="font-sans text-sm font-medium text-secondary">
+          <Link
+            to={user ? '/dashboard/mentors' : '/mentors'}
+            className="font-sans text-sm font-medium text-secondary"
+          >
             Back to search
           </Link>
         </div>
-      </DashboardLayout>
+      </ProfileLayout>
     );
   }
 
   if (!mentor) {
-    return <DashboardLayout title="Mentor profile">{null}</DashboardLayout>;
+    return <ProfileLayout title="Mentor profile">{null}</ProfileLayout>;
   }
 
   const service = mentor.services.find((item) => item.id === serviceId) ?? mentor.services[0];
-  if (!service) return <DashboardLayout title={mentor.name}>{null}</DashboardLayout>;
   const visiblePosts = showAllPosts ? mentor.posts : mentor.posts.slice(0, 2);
   const subject = mentor.subjects[0] ?? 'Mentoring';
   const isOwner = user?.id === mentor.id;
@@ -127,18 +132,18 @@ export default function MentorProfilePage() {
   }
 
   return (
-    <DashboardLayout title={mentor.name}>
+    <ProfileLayout title={mentor.name}>
       <div className="flex w-full flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8">
         <div className="flex flex-wrap items-center gap-2 font-sans text-sm text-ink-muted">
           <Link
-            to="/dashboard/mentors"
+            to={user ? '/dashboard/mentors' : '/mentors'}
             className="inline-flex items-center gap-1.5 font-medium text-ink-soft"
           >
             <ArrowLeft className="size-4" />
             Back to results
           </Link>
           <span>·</span>
-          <Link to="/dashboard/mentors" className="hover:text-ink">
+          <Link to={user ? '/dashboard/mentors' : '/mentors'} className="hover:text-ink">
             Find a mentor
           </Link>
           <span>·</span>
@@ -149,7 +154,10 @@ export default function MentorProfilePage() {
 
         {isOwner && (
           <p className="rounded-xl bg-accent-soft p-4 font-sans text-sm text-accent-strong">
-            This is how students see your profile. You can&rsquo;t book your own sessions.
+            This is how students see your profile. You can&rsquo;t book your own sessions.{' '}
+            <Link to="/dashboard/profile" className="underline">
+              Edit profile
+            </Link>
           </p>
         )}
 
@@ -188,12 +196,12 @@ export default function MentorProfilePage() {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {mentor.tags.map((tag) => (
+                {mentor.skills.map((skill) => (
                   <span
-                    key={tag.label}
+                    key={skill}
                     className="rounded-md bg-white/10 px-2.5 py-1 font-sans text-xs font-medium text-primary-soft"
                   >
-                    {tag.label}
+                    {skill}
                   </span>
                 ))}
               </div>
@@ -268,7 +276,17 @@ export default function MentorProfilePage() {
               <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
                 About {firstName(mentor.name)}
               </h2>
-              <p className="font-sans text-base leading-relaxed text-ink-soft">{mentor.about}</p>
+              <p className="whitespace-pre-wrap font-sans text-base leading-relaxed text-ink-soft">
+                {mentor.about}
+              </p>
+              <div>
+                <h3 className="font-sans text-sm font-semibold text-ink">Subject areas</h3>
+                <ul className="flex flex-wrap gap-3">
+                  {mentor.subjects.map((subject) => (
+                    <li key={subject}>{subject}</li>
+                  ))}
+                </ul>
+              </div>
               <div className="flex flex-col gap-4">
                 {mentor.experience.map((item) => (
                   <div key={item.title} className="flex items-start gap-3">
@@ -301,8 +319,9 @@ export default function MentorProfilePage() {
                   payment is confirmed.
                 </p>
               </div>
+              {!service && <p>No sessions are currently available.</p>}
               {mentor.services.map((item) => {
-                const selected = item.id === service.id;
+                const selected = item.id === service?.id;
                 return (
                   <button
                     key={item.id}
@@ -436,7 +455,7 @@ export default function MentorProfilePage() {
             </section>
           </div>
 
-          {!isOwner && (
+          {!isOwner && service && (
             <BookingPanel
               mentor={mentor}
               service={service}
@@ -449,6 +468,19 @@ export default function MentorProfilePage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </ProfileLayout>
+  );
+}
+
+function ProfileLayout({ title, children }: { title: string; children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <p role="status">Loading profile…</p>;
+  if (user) return <DashboardLayout title={title}>{children}</DashboardLayout>;
+  return (
+    <>
+      <NavBar className="max-sm:h-auto max-sm:flex-wrap max-sm:gap-4 max-sm:py-4" />
+      <main className="mx-auto max-w-7xl">{children}</main>
+      <Footer />
+    </>
   );
 }

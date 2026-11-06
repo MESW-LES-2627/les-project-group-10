@@ -62,8 +62,8 @@ authRouter.post('/register', async (req, res) => {
 });
 
 authRouter.post('/register-mentor', async (req, res) => {
-  const { bio, ...input } = parseBody(registerMentorSchema, req.body);
-  await registerWithRole(res, input, (client, userId) => insertMentor(client, userId, bio));
+  const input = parseBody(registerMentorSchema, req.body);
+  await registerWithRole(res, input, insertMentor);
 });
 
 authRouter.post('/login', async (req, res) => {

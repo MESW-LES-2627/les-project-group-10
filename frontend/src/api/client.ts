@@ -62,3 +62,7 @@ export function apiGet<T>(url: string): Promise<T> {
 export function apiPost<T>(url: string, body?: unknown): Promise<T> {
   return request<T>('POST', url, body);
 }
+
+export function apiPut<T>(url: string, body: unknown): Promise<T> {
+  return request<T>('PUT', url, body);
+}
