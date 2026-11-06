@@ -121,7 +121,7 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-PR CI targets `main` and now runs both package test suites plus backend integration tests using its
-existing PostgreSQL service. No CD workflow or production credentials are required.
+PR CI targets `main`. Test execution in CI is handled by a separate pull request; this feature keeps
+its test commands available locally without changing CI. No production credentials are required.
 
 See [acceptance evidence](testing/issue-21-acceptance.md) for executed scenarios and results.

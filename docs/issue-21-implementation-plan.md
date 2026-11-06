@@ -221,10 +221,9 @@ this story's acceptance.
 
 ## 7. CI and verification
 
-Keep `.github/workflows/ci.yml` targeting PRs to `main`. Add both package unit-test commands and the
-backend integration command after migrations, using the existing PostgreSQL service and a dedicated
-test database variable. Preserve existing TODO comments as required by the local guide; annotate
-that the new steps cover tests. Do not add CD settings or deployment secrets.
+Keep `.github/workflows/ci.yml` unchanged. Enabling unit and integration tests in CI belongs to a
+separate pull request. Run this feature's suites locally with the commands below; do not add CI test
+steps, CD settings or deployment secrets in this feature branch.
 
 Run on Node 22+ after defining the integration script and documenting its database configuration:
 

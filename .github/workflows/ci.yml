@@ -82,11 +82,6 @@ jobs:
       - run: npm run db:migrate
       - run: npm run db:seed
       # TODO: add npm test when Vitest is added
-      # Run the profile validation and HTTP/database regression coverage.
-      - run: npm test
-      - run: npm run test:integration
-        env:
-          TEST_DATABASE_URL: postgres://feup:feup@localhost:5432/feup_connect_test
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -103,5 +98,4 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test
       - run: npm run build
