@@ -6,8 +6,5 @@ dist
 CLAUDE.md
 /.vibe-wise
 /AGENTS.md
-/docs/Deployment Plan.md
-/docs/Deployment Setup.md
-/docs/deployment-plan.md
-/docs/deployment-setup.md
 __pycache__/
+.vercel/

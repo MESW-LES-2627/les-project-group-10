@@ -126,6 +126,12 @@ export async function findPublicMentor(id: string) {
            WHERE s.mentor_id = slot.mentor_id
              AND b.scheduled_at = slot.starts_at
              AND b.status <> 'cancelled'
+             AND NOT (
+               b.status = 'pending_payment' AND EXISTS (
+                 SELECT 1 FROM payment p WHERE p.booking_id = b.id
+                   AND p.status = 'pending' AND p.reservation_expires_at <= now()
+               )
+             )
         )
       ORDER BY slot.starts_at`,
     [id],

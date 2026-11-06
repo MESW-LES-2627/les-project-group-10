@@ -2,35 +2,89 @@ name: Deploy
 
 on:
   push:
-    branches: [develop, main]
+    branches:
+      - develop
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: les-deploy-${{ github.ref }}
-  cancel-in-progress: false
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Linux, les-deploy]
-    if: github.event.repository.private
+    name: Deploy ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: staging
+            database_secret: STAGING_DATABASE_URL
+            project_id: prj_BaFanLLpy6enxObnHC4EFFCYz7q9
+            health_url: https://les-staging.simaob.com/api/health
+          - target: production
+            database_secret: PRODUCTION_DATABASE_URL
+            project_id: prj_Vk1vscCrsqdTws1zzGKvluEryXw3
+            health_url: https://les.simaob.com/api/health
+    env:
+      NODE_VERSION: '22'
+      VERCEL_ORG_ID: team_cG3CveVNJvYQfNudXEr9srwt
+      VERCEL_PROJECT_ID: ${{ matrix.project_id }}
     steps:
-      - name: Check out the triggering commit
-        uses: actions/checkout@v4
+      - name: Check out protected branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Deploy the current branch head
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root tools
+        run: npm ci
         env:
-          DEPLOY_BRANCH: ${{ github.ref_name }}
-          DEPLOY_SHA: ${{ github.sha }}
+          HUSKY: 0
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build deployment bundle
+        run: npm run deploy:build
+
+      - name: Prepare environment file for migration command
+        run: cp .env.example .env
+
+      - name: Apply database migrations
+        run: npm --prefix backend run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets[matrix.database_secret] }}
+
+      - name: Deploy to Vercel
+        run: node scripts/publish-deployment.mjs ${{ matrix.target }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Check public API health
         run: |
-          case "$DEPLOY_BRANCH" in
-            develop) deployment_environment=staging ;;
-            main) deployment_environment=production ;;
-            *) exit 1 ;;
-          esac
-          bash scripts/deploy.sh deploy "$deployment_environment" "$DEPLOY_SHA"
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --retry-all-errors '${{ matrix.health_url }}')"
+          RESPONSE="$response" node --input-type=module -e '
+            const body = JSON.parse(process.env.RESPONSE);
+            if (body.status !== "ok") {
+              console.error("Deployment health check did not return status ok");
+              process.exit(1);
+            }
+          '

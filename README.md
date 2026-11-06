@@ -105,11 +105,6 @@ They **cannot log in**, because their passwords were hashed with a different alg
 login uses. Create your own account at http://localhost:5173/signup instead. Registering as a
 mentor leads to the onboarding steps; finishing them saves your profile.
 
-## Deployment
-
-See [Deployment](docs/deployment.md) for the staging and production workflow.
-The server uses `compose.deploy.yml`; `docker-compose.yml` stays for local development.
-
 ## Project tree
 
 ```

@@ -112,30 +112,48 @@ export async function attachPaymentIntent(paymentId: string, intentId: string) {
   ]);
 }
 
-export async function findPendingStripePayments() {
-  const { rows } = await pool.query<{ stripe_payment_intent_id: string }>(
-    `SELECT p.stripe_payment_intent_id FROM payment p
+export async function findPendingStripePayments(studentId?: string, bookingId?: string) {
+  const { rows } = await pool.query<{
+    stripe_payment_intent_id: string;
+    reservation_expires_at: Date;
+    amount_cents: number;
+  }>(
+    `SELECT p.stripe_payment_intent_id, p.reservation_expires_at, p.amount_cents FROM payment p
        JOIN booking b ON b.id = p.booking_id
       WHERE p.status = 'pending' AND b.status = 'pending_payment'
-        AND p.stripe_payment_intent_id IS NOT NULL`,
+        AND p.stripe_payment_intent_id IS NOT NULL
+        AND ($1::uuid IS NULL OR b.student_id = $1)
+        AND ($2::uuid IS NULL OR b.id = $2)`,
+    [studentId ?? null, bookingId ?? null],
   );
-  return rows.map((row) => row.stripe_payment_intent_id);
+  return rows;
 }
 
-export async function markStripePaymentResult(intentId: string, succeeded: boolean) {
+export async function markStripePaymentResult(
+  intentId: string,
+  succeeded: boolean,
+  paidAt = new Date(),
+) {
   return withPaymentLock(async (client) => {
     const found = await client.query<{
       id: string;
       booking_id: string;
       status: string;
       reservation_expires_at: Date;
+      booking_status: string;
     }>(
-      'SELECT id, booking_id, status, reservation_expires_at FROM payment WHERE stripe_payment_intent_id = $1 FOR UPDATE',
+      `SELECT p.id, p.booking_id, p.status, p.reservation_expires_at, b.status AS booking_status
+         FROM payment p JOIN booking b ON b.id = p.booking_id
+        WHERE p.stripe_payment_intent_id = $1 FOR UPDATE OF p, b`,
       [intentId],
     );
     const payment = found.rows[0];
     if (!payment || payment.status !== 'pending') return null;
-    const isValid = succeeded && payment.reservation_expires_at > new Date();
+    // A sleeping function may observe success later. Use Stripe's charge time.
+    const isValid =
+      succeeded &&
+      payment.booking_status === 'pending_payment' &&
+      payment.reservation_expires_at >= paidAt;
     await client.query('UPDATE payment SET status = $2 WHERE id = $1', [
       payment.id,
       isValid ? 'succeeded' : 'failed',
@@ -161,28 +179,6 @@ async function withPaymentLock<T>(work: (client: PoolClient) => Promise<T>): Pro
   } finally {
     client.release();
   }
-}
-
-export async function expirePendingPayments() {
-  return withPaymentLock(async (client) => {
-    const expired = await client.query<{
-      id: string;
-      booking_id: string;
-      stripe_payment_intent_id: string | null;
-    }>(
-      `SELECT p.id, p.booking_id, p.stripe_payment_intent_id FROM payment p
-        JOIN booking b ON b.id = p.booking_id
-       WHERE p.status = 'pending' AND p.reservation_expires_at <= now() AND b.status = 'pending_payment'
-       FOR UPDATE OF p, b SKIP LOCKED`,
-    );
-    for (const row of expired.rows) {
-      await client.query("UPDATE payment SET status = 'failed' WHERE id = $1", [row.id]);
-      await client.query("UPDATE booking SET status = 'cancelled' WHERE id = $1", [row.booking_id]);
-    }
-    return expired.rows.flatMap((row) =>
-      row.stripe_payment_intent_id ? [row.stripe_payment_intent_id] : [],
-    );
-  });
 }
 
 const BOOKING_DETAILS_SQL = `

@@ -4,6 +4,7 @@
   "private": true,
   "description": "FEUP Connect: platform connecting students with tutors and mentors",
   "scripts": {
+    "deploy:build": "node scripts/build-deployment.mjs",
     "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
