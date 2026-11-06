@@ -30,8 +30,8 @@ export async function insertStudent(client: PoolClient, userId: string): Promise
 }
 
 // headline stays NULL and onboarding_finished takes its default (false) until onboarding
-export async function insertMentor(client: PoolClient, userId: string, bio: string): Promise<void> {
-  await client.query('INSERT INTO mentor (user_id, bio) VALUES ($1, $2)', [userId, bio]);
+export async function insertMentor(client: PoolClient, userId: string): Promise<void> {
+  await client.query("INSERT INTO mentor (user_id, bio) VALUES ($1, '')", [userId]);
 }
 
 // a user's roles are whichever role rows exist

@@ -3,6 +3,7 @@ import type { Service } from '@/components/mentor-onboarding/ServiceList';
 import type { MentorOnboardingData } from '@/pages/mentor-onboarding/mentorOnboardingContext';
 import {
   getInitials,
+  mentorBioExcerpt,
   lowestServicePrice,
   pluralize,
   tagsFromSkills,
@@ -80,7 +81,6 @@ describe('toOnboardingPayload', () => {
       location: 'Porto',
       languages: ['English'],
       linkedIn: 'https://linkedin.com/in/jane',
-      tagline: 'Tagline',
       headline: 'Headline',
       subjects: ['Engineering'],
       skills: ['TypeScript'],
@@ -96,7 +96,6 @@ describe('toOnboardingPayload', () => {
       location: 'Porto',
       languages: ['English'],
       linkedinUrl: 'https://linkedin.com/in/jane',
-      tagline: 'Tagline',
       headline: 'Headline',
       subjects: ['Engineering'],
       skills: ['TypeScript'],
@@ -105,5 +104,19 @@ describe('toOnboardingPayload', () => {
       ],
       bio: 'Bio',
     });
+  });
+});
+
+describe('mentorBioExcerpt', () => {
+  it('normalizes whitespace for compact cards without changing the stored biography', () => {
+    expect(mentorBioExcerpt('  Work experience.\nHow I help students.  ')).toBe(
+      'Work experience. How I help students.',
+    );
+  });
+  it('keeps short biographies intact and truncates long ones to 160 characters', () => {
+    expect(mentorBioExcerpt('Short biography')).toBe('Short biography');
+    expect(mentorBioExcerpt('a'.repeat(160))).toBe('a'.repeat(160));
+    expect(mentorBioExcerpt('a'.repeat(161))).toBe(`${'a'.repeat(159)}…`);
+    expect(mentorBioExcerpt('')).toBe('');
   });
 });

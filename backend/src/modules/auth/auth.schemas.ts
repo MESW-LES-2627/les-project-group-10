@@ -11,13 +11,7 @@ export const registerSchema = z.object({
     .max(72, 'Password musy have at most 72 characters'),
 });
 
-export const registerMentorSchema = registerSchema.extend({
-  bio: z
-    .string()
-    .trim()
-    .min(1, 'Bio is required')
-    .max(1000, 'Bio must have at most 1000 characters'),
-});
+export const registerMentorSchema = registerSchema;
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().min(1, 'Email is required'),

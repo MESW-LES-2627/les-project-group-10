@@ -14,6 +14,7 @@ const navLinks = [
 
 export interface NavBarProps {
   variant?: 'public' | 'student';
+  className?: string;
   /** Overrides the initials shown in the student header (defaults to the logged-in user's). */
   studentInitials?: string;
 }
@@ -23,7 +24,7 @@ export interface NavBarProps {
  * student sessions/notifications/avatar, or (public variant, logged in)
  * a profile avatar and a log out button.
  */
-export function NavBar({ variant = 'public', studentInitials }: NavBarProps) {
+export function NavBar({ variant = 'public', studentInitials, className = '' }: NavBarProps) {
   const navigate = useNavigate();
   const { user, loading, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -44,7 +45,9 @@ export function NavBar({ variant = 'public', studentInitials }: NavBarProps) {
   const initials = studentInitials ?? (user ? getInitials(user.username) : '');
 
   return (
-    <header className="flex h-22 w-full items-center justify-between border-b border-line bg-canvas px-6 lg:px-30">
+    <header
+      className={`flex h-22 w-full items-center justify-between border-b border-line bg-canvas px-6 lg:px-30 ${className}`}
+    >
       <Logo />
       <nav className="hidden items-center gap-9 font-sans text-base font-medium text-ink lg:flex">
         {navLinks.map((link) => (

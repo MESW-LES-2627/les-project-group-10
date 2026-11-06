@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "db:migrate": "tsx --env-file=../.env src/db/migrate.ts",
-    "db:seed": "tsx --env-file=../.env src/db/seed.ts"
+    "db:seed": "tsx --env-file=../.env src/db/seed.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "express": "^5.3.0",

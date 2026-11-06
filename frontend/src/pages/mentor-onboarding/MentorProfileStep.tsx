@@ -10,7 +10,7 @@ import { useMentorOnboarding } from './useMentorOnboarding';
 
 /**
  * Mentor onboarding step 1 of 3: basic profile details (name,
- * location, languages, intro).
+ * location, languages and an optional profile link).
  */
 export default function MentorProfileStep() {
   const navigate = useNavigate();
@@ -97,15 +97,6 @@ export default function MentorProfileStep() {
           leadingIcon={<Link2 className="size-5" />}
           value={data.linkedIn}
           onChange={(event) => updateData({ linkedIn: event.target.value })}
-        />
-
-        <Input
-          type="text"
-          label="One-line intro"
-          placeholder="Making system design click, one session at a time."
-          value={data.tagline}
-          onChange={(event) => updateData({ tagline: event.target.value })}
-          required
         />
 
         <InfoNote icon={<ShieldCheck className="size-5" />}>

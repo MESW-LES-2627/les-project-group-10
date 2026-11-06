@@ -18,9 +18,7 @@ export interface RegisterInput {
   password: string;
 }
 
-export interface RegisterMentorInput extends RegisterInput {
-  bio: string;
-}
+export type RegisterMentorInput = RegisterInput;
 
 export interface LoginInput {
   email: string;

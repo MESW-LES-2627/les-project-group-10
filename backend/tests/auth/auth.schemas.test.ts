@@ -34,23 +34,23 @@ describe('registerSchema', () => {
 });
 
 describe('registerMentorSchema', () => {
-  it('accepts valid input with a bio', () => {
+  it('accepts account details without asking for a biography', () => {
     const result = registerMentorSchema.safeParse({
       username: 'jane',
       email: 'jane@example.com',
       password: 'secret1',
-      bio: 'Experienced mentor.',
     });
     expect(result.success).toBe(true);
   });
 
-  it('rejects a missing bio', () => {
-    const result = registerMentorSchema.safeParse({
+  it('does not include legacy biography input in account creation data', () => {
+    const result = registerMentorSchema.parse({
       username: 'jane',
       email: 'jane@example.com',
       password: 'secret1',
+      bio: 'Legacy biography',
     });
-    expect(result.success).toBe(false);
+    expect(result).not.toHaveProperty('bio');
   });
 });
 

@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Search,
   Settings,
+  UserRound,
   SlidersHorizontal,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -65,7 +66,12 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        {RAIL_ITEMS.map((item) => {
+        {[
+          ...RAIL_ITEMS,
+          ...(user?.isMentor
+            ? [{ label: 'My profile', icon: UserRound, href: '/dashboard/profile' }]
+            : []),
+        ].map((item) => {
           const active = isActiveItem(item.href, pathname, hash);
           const className = clsx(
             'flex w-full items-center gap-3 rounded-[10px] px-3.5 py-3 text-left',

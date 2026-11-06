@@ -28,7 +28,6 @@ export const mentorOnboardingSchema = z.object({
     .min(1, 'Pick at least one language')
     .max(10, 'Pick at most 10 languages'),
   linkedinUrl: z.string().trim().max(200, 'Link is too long').default(''),
-  tagline: z.string().trim().min(1, 'Intro is required').max(120, 'Intro is too long'),
   headline: z.string().trim().min(1, 'Headline is required').max(120, 'Headline is too long'),
   subjects: z
     .array(z.string().trim().min(1))
@@ -44,8 +43,25 @@ export const mentorOnboardingSchema = z.object({
   bio: z
     .string()
     .trim()
-    .min(1, 'Bio is required')
-    .max(1000, 'Bio must have at most 1000 characters'),
+    .min(1, 'About you is required')
+    .max(1000, 'About you must have at most 1000 characters'),
 });
 
 export type MentorOnboardingInput = z.infer<typeof mentorOnboardingSchema>;
+
+export const mentorProfileSchema = z.strictObject({
+  headline: mentorOnboardingSchema.shape.headline,
+  bio: mentorOnboardingSchema.shape.bio,
+  subjects: mentorOnboardingSchema.shape.subjects.refine(
+    (subjects) => new Set(subjects).size === subjects.length,
+    'Choose each subject only once',
+  ),
+  skills: mentorOnboardingSchema.shape.skills.transform((skills) =>
+    skills.filter(
+      (skill, index) =>
+        skills.findIndex((candidate) => candidate.toLowerCase() === skill.toLowerCase()) === index,
+    ),
+  ),
+});
+
+export type MentorProfileInput = z.infer<typeof mentorProfileSchema>;

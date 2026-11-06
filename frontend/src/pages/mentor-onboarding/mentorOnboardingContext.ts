@@ -6,7 +6,6 @@ export interface MentorOnboardingData {
   location: string;
   languages: string[];
   linkedIn: string;
-  tagline: string;
   headline: string;
   subjects: string[];
   skills: string[];
@@ -20,7 +19,6 @@ export const DEFAULT_MENTOR_ONBOARDING_DATA: MentorOnboardingData = {
   location: '',
   languages: ['Portuguese', 'English'],
   linkedIn: '',
-  tagline: '',
   headline: '',
   subjects: [],
   skills: [],
