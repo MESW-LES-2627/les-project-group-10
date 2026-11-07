@@ -1,13 +1,22 @@
 import { HttpError } from '../../middleware/errorHandler.js';
-import { findPendingStripePayments, markStripePaymentResult } from './bookings.queries.js';
+import {
+  expireUnattachedPayment,
+  findPendingStripePayments,
+  markStripePaymentResult,
+} from './bookings.queries.js';
+import type { PaymentScope } from './bookings.queries.js';
 import { stripe } from './stripe.js';
 
 // Await this work inside a request. Serverless instances do not run idle timers.
-export async function synchronizeStripePayments(studentId?: string, bookingId?: string) {
-  const payments = await findPendingStripePayments(studentId, bookingId);
-  await Promise.all(
+export async function synchronizeStripePayments(scope: PaymentScope) {
+  const payments = await findPendingStripePayments(scope);
+  const results = await Promise.allSettled(
     payments.map(async (payment) => {
       const id = payment.stripe_payment_intent_id;
+      if (!id) {
+        await expireUnattachedPayment(payment.id);
+        return;
+      }
       let intent = await stripe.paymentIntents.retrieve(id, { expand: ['latest_charge'] });
       if (intent.livemode) {
         throw new HttpError(
@@ -59,4 +68,13 @@ export async function synchronizeStripePayments(studentId?: string, bookingId?: 
       }
     }),
   );
+  const failure = results.find((result) => result.status === 'rejected');
+  if (failure?.status === 'rejected') {
+    if (scope.checkout || scope.bookingId) {
+      if (failure.reason instanceof HttpError) throw failure.reason;
+      throw new HttpError(502, 'payment_verification_unavailable', 'Try verifying payment again');
+    }
+    // Keep confirmed dashboard bookings readable when another attempt cannot be checked.
+    console.warn('Some pending Stripe payments could not be verified');
+  }
 }

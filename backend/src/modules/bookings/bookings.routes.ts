@@ -6,10 +6,11 @@ import { parseBody } from '../../middleware/validate.js';
 import {
   attachPaymentIntent,
   createPendingBooking,
+  expireUnattachedPayment,
   findBookingForStudent,
   findUpcomingBookingsForStudent,
 } from './bookings.queries.js';
-import { stripeCheckoutSchema } from './bookings.schemas.js';
+import { bookingIdSchema, stripeCheckoutSchema } from './bookings.schemas.js';
 import { stripe } from './stripe.js';
 import { synchronizeStripePayments } from './payments.js';
 
@@ -21,7 +22,7 @@ bookingsRouter.get('/stripe/config', (_req, res) => {
 
 bookingsRouter.post('/checkout/stripe', requireAuth, async (req, res) => {
   const input = parseBody(stripeCheckoutSchema, req.body);
-  await synchronizeStripePayments();
+  await synchronizeStripePayments({ studentId: res.locals.user.id, checkout: input });
   const attempt = await withTransaction((client) =>
     createPendingBooking(client, res.locals.user.id, input),
   );
@@ -39,7 +40,11 @@ bookingsRouter.post('/checkout/stripe', requireAuth, async (req, res) => {
       },
       { idempotencyKey: input.idempotencyKey },
     );
-    await attachPaymentIntent(attempt.paymentId, intent.id);
+  }
+  if (!(await attachPaymentIntent(attempt.paymentId, intent.id))) {
+    await stripe.paymentIntents.cancel(intent.id);
+    await expireUnattachedPayment(attempt.paymentId);
+    throw new HttpError(409, 'payment_attempt_closed', 'Start a new checkout attempt');
   }
   if (!intent.client_secret)
     throw new HttpError(502, 'stripe_checkout_unavailable', 'Checkout could not be started');
@@ -47,15 +52,15 @@ bookingsRouter.post('/checkout/stripe', requireAuth, async (req, res) => {
 });
 
 bookingsRouter.get('/me', requireAuth, async (_req, res) => {
-  await synchronizeStripePayments(res.locals.user.id);
+  await synchronizeStripePayments({ studentId: res.locals.user.id });
   res.json({ bookings: await findUpcomingBookingsForStudent(res.locals.user.id) });
 });
 
 bookingsRouter.get('/:bookingId', requireAuth, async (req, res) => {
   const bookingId = req.params.bookingId;
-  if (typeof bookingId !== 'string')
+  if (typeof bookingId !== 'string' || !bookingIdSchema.safeParse(bookingId).success)
     throw new HttpError(404, 'booking_not_found', 'Booking not found');
-  await synchronizeStripePayments(res.locals.user.id, bookingId);
+  await synchronizeStripePayments({ studentId: res.locals.user.id, bookingId });
   const booking = await findBookingForStudent(bookingId, res.locals.user.id);
   if (!booking) throw new HttpError(404, 'booking_not_found', 'Booking not found');
   res.json({ booking });
