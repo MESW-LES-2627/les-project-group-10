@@ -36,7 +36,7 @@ Then edit `.env`:
 - Keep `DATABASE_URL` consistent with `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`
   (same user, password and database name).
 - Set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` to your Stripe test-mode API keys. Checkout
-  uses test payments only. The backend verifies payment by polling Stripe, so local checkout does
+  uses test payments only. The backend verifies payment during booking and dashboard requests, so local checkout does
   not require the Stripe CLI or a webhook secret.
 - Write values as `KEY=value`. Never commit `.env`; each person has their own secret.
 
@@ -170,8 +170,15 @@ unit test and the `BookingPanel` component test.
 (cd frontend && npm test)
 ```
 
-Backend tests are unit tests only: pure functions such as password hashing, session tokens, and
-Zod schemas. There is no database or network involved, and no Stripe calls are made.
+The default backend test suite covers pure functions such as password hashing, session tokens,
+and Zod schemas. It uses no database or network, and makes no Stripe calls.
+
+`npm test` runs those unit tests. Database integration tests run separately with
+`TEST_DATABASE_URL=postgres://.../feup_connect_test npm run test:integration` from `backend/`.
+Use a disposable database whose name ends in `_test`. These tests cover profiles, booking
+reservations, concurrent checkout and deployment readiness. Stripe is mocked. CI runs both suites.
+Expired checkout attempts cannot be reused. Checkout verifies only its retry and expired
+reservations for the requested slot; an unrelated Stripe failure does not block another slot.
 
 Frontend tests are a mix of:
 

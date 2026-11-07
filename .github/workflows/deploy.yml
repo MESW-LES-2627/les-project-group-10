@@ -14,7 +14,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate release
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: validate
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -23,7 +28,6 @@ jobs:
       DEPLOY_TARGET: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
       VERCEL_ORG_ID: team_cG3CveVNJvYQfNudXEr9srwt
       VERCEL_PROJECT_ID: ${{ github.ref_name == 'main' && 'prj_Vk1vscCrsqdTws1zzGKvluEryXw3' || 'prj_BaFanLLpy6enxObnHC4EFFCYz7q9' }}
-      HEALTH_URL: ${{ github.ref_name == 'main' && 'https://les.simaob.com/api/health' || 'https://les-staging.simaob.com/api/health' }}
     steps:
       - name: Check out protected branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -69,15 +73,3 @@ jobs:
         run: node scripts/publish-deployment.mjs "$DEPLOY_TARGET"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: Check public API health
-        run: |
-          set -euo pipefail
-          response="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 10 --retry-connrefused --retry-delay 2 --retry-all-errors "$HEALTH_URL")"
-          RESPONSE="$response" node --input-type=module -e '
-            const body = JSON.parse(process.env.RESPONSE);
-            if (body.status !== "ok") {
-              console.error("Deployment health check did not return status ok");
-              process.exit(1);
-            }
-          '

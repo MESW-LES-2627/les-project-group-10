@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -6,6 +6,20 @@ import path from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, '.vercel/output');
 const functionDir = path.join(output, 'functions/api/index.func');
+const git = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
+if (git.status !== 0) throw new Error('Cannot identify the deployment commit');
+const revision = git.stdout.trim();
+if (
+  !/^[a-f0-9]{40}$/.test(revision) ||
+  (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== revision)
+) {
+  throw new Error('The deployment checkout does not match the requested commit');
+}
+const migration = (await readdir(path.join(root, 'backend/db/migrations')))
+  .filter((file) => file.endsWith('.sql'))
+  .sort()
+  .at(-1);
+if (!migration) throw new Error('No database migrations found');
 
 function run(args, cwd = root) {
   const result = spawnSync('npm', args, { cwd, stdio: 'inherit', env: process.env });
@@ -47,6 +61,7 @@ await writeFile(
     shouldAddHelpers: true,
     maxDuration: 60,
     regions: ['fra1'],
+    environment: { DEPLOYMENT_REVISION: revision, REQUIRED_MIGRATION: migration },
   }),
 );
 await writeFile(
