@@ -50,7 +50,10 @@ fs.appendFileSync(process.env.EVENTS, JSON.stringify({kind, args, project}) + '\
 const health = JSON.parse(process.env.HEALTH);
 if (kind === 'curl') {
   const stale = process.env.PUBLIC_STALE_ONCE && !oldEvents.includes('"kind":"curl"');
-  console.log(JSON.stringify({...health, revision: stale ? 'old' : health.revision}));
+  const url = args.at(-1);
+  if (url.endsWith('/api/health')) console.log(process.env.BAD_HEALTH || JSON.stringify({...health, revision: stale ? 'old' : health.revision}));
+  else if (url.endsWith('/')) console.log(process.env.BAD_HTML || process.env.HTML);
+  else process.stdout.write(process.env.BAD_ASSET || process.env.JAVASCRIPT);
 } else if (args[0] === 'project') {
   console.log(JSON.stringify({id: process.env.BAD_INSPECTION ? 'wrong' : project.projectId, name: 'feup-connect-' + process.env.TEST_TARGET, accountId: project.orgId}));
 } else if (args[0] === 'deploy') {
@@ -62,6 +65,10 @@ if (kind === 'curl') {
   if (args[1] === '/api/health') console.log(process.env.BAD_HEALTH || JSON.stringify(health));
   else if (args[1] === '/') console.log(process.env.BAD_HTML || process.env.HTML);
   else process.stdout.write(process.env.BAD_ASSET || process.env.JAVASCRIPT);
+} else if (args[0] === 'inspect') {
+  console.log(JSON.stringify({id:'dpl_previous'}));
+} else if (args[0] === 'rollback') {
+  process.exit(0);
 } else if (args[0] === 'promote') {
   process.exit(Number(process.env.PROMOTE_EXIT || 0));
 } else process.exit(91);
@@ -100,14 +107,14 @@ if (kind === 'curl') {
   };
 }
 for (const target of Object.keys(projects)) {
-  test(`stages and verifies ${target} before promotion, then verifies its public domain`, async (t) => {
+  test(`promotes ${target} after CI and verifies its public domain`, async (t) => {
     const f = await fixture(t);
     const result = f.run(target);
     assert.equal(result.status, 0, result.stderr);
     const events = await f.events();
     assert.deepEqual(
       events.map((e) => (e.kind === 'curl' ? 'public' : e.args[0])),
-      ['project', 'deploy', 'curl', 'curl', 'curl', 'promote', 'public'],
+      ['project', 'deploy', 'inspect', 'promote', 'public', 'public', 'public'],
     );
     assert.ok(events[1].args.includes('--prebuilt'));
     assert.ok(events[1].args.includes('--prod'));
@@ -115,13 +122,12 @@ for (const target of Object.keys(projects)) {
     for (const event of events)
       assert.deepEqual(event.project, { projectId: projects[target], orgId });
     const deployment = `https://feup-connect-${target}-test.vercel.app`;
-    for (const event of events.slice(2, 5))
-      assert.equal(event.args[event.args.indexOf('--deployment') + 1], deployment);
-    assert.equal(events[5].args[1], deployment);
+    assert.equal(events[3].args[1], deployment);
     assert.equal(
-      events[6].args.at(-1),
+      events[4].args.at(-1),
       `https://les${target === 'staging' ? '-staging' : ''}.simaob.com/api/health`,
     );
+    assert.ok(!events.some((e) => e.kind === 'npx' && e.args[0] === 'curl'));
     await f.assertClean();
   });
 }
@@ -174,18 +180,22 @@ for (const badHealth of [
   JSON.stringify({ ...health, revision: 'old' }),
   JSON.stringify({ ...health, migration: '001_init.sql' }),
 ]) {
-  test(`does not promote an unhealthy or different release: ${badHealth}`, async (t) => {
+  test(`rolls back an unhealthy or different release: ${badHealth}`, async (t) => {
     const f = await fixture(t);
     assert.notEqual(f.run('staging', { BAD_HEALTH: badHealth }).status, 0);
-    assert.ok(!(await f.events()).some((e) => e.args[0] === 'promote'));
+    assert.ok(
+      (await f.events()).some((e) => e.args[0] === 'rollback' && e.args[1] === 'dpl_previous'),
+    );
     await f.assertClean();
   });
 }
 for (const overrides of [{ BAD_HTML: '<html>old build</html>' }, { BAD_ASSET: 'wrong bundle' }]) {
-  test(`does not promote a mismatched frontend: ${Object.keys(overrides)[0]}`, async (t) => {
+  test(`rolls back a mismatched frontend: ${Object.keys(overrides)[0]}`, async (t) => {
     const f = await fixture(t);
     assert.notEqual(f.run('staging', overrides).status, 0);
-    assert.ok(!(await f.events()).some((e) => e.args[0] === 'promote'));
+    assert.ok(
+      (await f.events()).some((e) => e.args[0] === 'rollback' && e.args[1] === 'dpl_previous'),
+    );
     await f.assertClean();
   });
 }
@@ -203,7 +213,7 @@ for (const variable of ['DEPLOY_EXIT', 'PROMOTE_EXIT']) {
     await f.assertClean();
   });
 }
-test('can verify a staged candidate without changing public traffic', async (t) => {
+test('can stage a candidate without protection requests or public traffic changes', async (t) => {
   const f = await fixture(t);
   const result = f.run('staging', {}, ['--stage-only']);
   assert.equal(result.status, 0, result.stderr);
@@ -214,6 +224,6 @@ test('waits for the public domain to serve the expected revision', async (t) => 
   const f = await fixture(t);
   const result = f.run('staging', { PUBLIC_STALE_ONCE: '1' });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal((await f.events()).filter((e) => e.kind === 'curl').length, 2);
+  assert.equal((await f.events()).filter((e) => e.kind === 'curl').length, 4);
   await f.assertClean();
 });

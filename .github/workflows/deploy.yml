@@ -29,7 +29,7 @@ jobs:
       VERCEL_ORG_ID: team_cG3CveVNJvYQfNudXEr9srwt
       VERCEL_PROJECT_ID: ${{ github.ref_name == 'main' && 'prj_Vk1vscCrsqdTws1zzGKvluEryXw3' || 'prj_BaFanLLpy6enxObnHC4EFFCYz7q9' }}
     steps:
-      - name: Check out protected branch
+      - name: Check out release commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false

@@ -129,30 +129,39 @@ try {
   }
   const deployedUrl = deployment.origin;
   console.log(`Staged ${target} deployment: ${deployedUrl}`);
-  const get = (urlPath) =>
-    vercel(['curl', urlPath, '--deployment', deployedUrl, '--', ...curlOptions]);
-  verifyHealth(get('/api/health'));
-  const expectedHtml = await readFile(path.join(root, '.vercel/output/static/index.html'), 'utf8');
-  const script = expectedHtml.match(/\bsrc="(\/assets\/[^"?#]+\.js)"/)?.[1];
-  if (!script || !get('/').includes(script))
-    throw new Error('The staged frontend does not match this build');
-  if (
-    hash(get(script)) !== hash(await readFile(path.join(root, '.vercel/output/static', script)))
-  ) {
-    throw new Error('The staged JavaScript does not match this build');
-  }
-  console.log(`Verified commit ${revision}, database migration, and frontend bundle`);
   if (!process.argv.includes('--stage-only')) {
+    const previous = JSON.parse(
+      vercel(['inspect', environment.origin, '--json', '--non-interactive']),
+    );
+    if (!/^dpl_[a-zA-Z0-9]+$/.test(previous.id ?? ''))
+      throw new Error('Cannot identify the current deployment for recovery');
     vercel(['promote', deployedUrl, '--yes', '--non-interactive']);
-    // Check the public domain without bypass credentials, including alias propagation.
-    for (let attempt = 0; ; attempt++) {
-      try {
-        verifyHealth(run('curl', [...curlOptions, `${environment.origin}/api/health`]));
-        break;
-      } catch (error) {
-        if (attempt === 4) throw error;
-        await setTimeout(2_000);
+    try {
+      const get = (urlPath) => run('curl', [...curlOptions, `${environment.origin}${urlPath}`]);
+      for (let attempt = 0; ; attempt++) {
+        try {
+          verifyHealth(get('/api/health'));
+          break;
+        } catch (error) {
+          if (attempt === 4) throw error;
+          await setTimeout(2_000);
+        }
       }
+      const expectedHtml = await readFile(
+        path.join(root, '.vercel/output/static/index.html'),
+        'utf8',
+      );
+      const script = expectedHtml.match(/\bsrc="(\/assets\/[^"?#]+\.js)"/)?.[1];
+      if (!script || !get('/').includes(script))
+        throw new Error('The public frontend does not match this build');
+      if (
+        hash(get(script)) !== hash(await readFile(path.join(root, '.vercel/output/static', script)))
+      )
+        throw new Error('The public JavaScript does not match this build');
+    } catch (error) {
+      console.error('Public release verification failed; restoring the previous deployment');
+      vercel(['rollback', previous.id, '--yes', '--non-interactive']);
+      throw error;
     }
     console.log(`Released ${revision} at ${environment.origin}`);
   }
