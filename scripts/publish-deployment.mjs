@@ -99,9 +99,26 @@ try {
   if (inspectedProject.id !== project.projectId || inspectedProject.name !== expectedName) {
     throw new Error(`Vercel project verification failed for ${expectedName}; deployment stopped.`);
   }
-  const deployment = new URL(
-    vercel(['deploy', '--prebuilt', '--prod', '--skip-domain', '--yes']).trim(),
+  const response = JSON.parse(
+    vercel([
+      'deploy',
+      '--prebuilt',
+      '--prod',
+      '--skip-domain',
+      '--yes',
+      '--json',
+      '--non-interactive',
+    ]),
   );
+  const uploaded = response.deployment ?? response;
+  if (
+    uploaded.readyState !== 'READY' ||
+    uploaded.target !== 'production' ||
+    typeof uploaded.url !== 'string'
+  ) {
+    throw new Error('Vercel did not return a ready staged production deployment');
+  }
+  const deployment = new URL(uploaded.url);
   if (
     deployment.protocol !== 'https:' ||
     deployment.origin !== deployment.href.replace(/\/$/, '') ||
@@ -126,7 +143,7 @@ try {
   }
   console.log(`Verified commit ${revision}, database migration, and frontend bundle`);
   if (!process.argv.includes('--stage-only')) {
-    vercel(['promote', deployedUrl, '--yes']);
+    vercel(['promote', deployedUrl, '--yes', '--non-interactive']);
     // Check the public domain without bypass credentials, including alias propagation.
     for (let attempt = 0; ; attempt++) {
       try {

@@ -56,7 +56,8 @@ if (kind === 'curl') {
 } else if (args[0] === 'deploy') {
   if (!fs.existsSync('.vercel/output/config.json')) process.exit(90);
   if (process.env.DEPLOY_EXIT) process.exit(Number(process.env.DEPLOY_EXIT));
-  console.log(process.env.DEPLOY_URL || 'https://feup-connect-' + process.env.TEST_TARGET + '-test.vercel.app');
+  const deployment = {url: process.env.DEPLOY_URL || 'https://feup-connect-' + process.env.TEST_TARGET + '-test.vercel.app', readyState: process.env.READY_STATE || 'READY', target:'production'};
+  console.log(JSON.stringify(process.env.UNWRAPPED_DEPLOYMENT ? deployment : {status:'ok',deployment}));
 } else if (args[0] === 'curl') {
   if (args[1] === '/api/health') console.log(process.env.BAD_HEALTH || JSON.stringify(health));
   else if (args[1] === '/') console.log(process.env.BAD_HTML || process.env.HTML);
@@ -133,6 +134,20 @@ test('supports an existing local staging link', async (t) => {
   );
   const result = f.run('staging', { VERCEL_PROJECT_ID: '', VERCEL_ORG_ID: '' });
   assert.equal(result.status, 0, result.stderr);
+  await f.assertClean();
+});
+
+test('accepts the CLI’s unwrapped JSON output as well as its agent envelope', async (t) => {
+  const f = await fixture(t);
+  const result = f.run('staging', { UNWRAPPED_DEPLOYMENT: '1' }, ['--stage-only']);
+  assert.equal(result.status, 0, result.stderr);
+  await f.assertClean();
+});
+
+test('rejects a deployment that is not ready before running smoke checks', async (t) => {
+  const f = await fixture(t);
+  assert.notEqual(f.run('staging', { READY_STATE: 'BUILDING' }).status, 0);
+  assert.equal((await f.events()).length, 2);
   await f.assertClean();
 });
 test('rejects wrong environment, organization, or artifact before invoking Vercel', async (t) => {
