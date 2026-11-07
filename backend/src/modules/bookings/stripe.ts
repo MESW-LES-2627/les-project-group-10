@@ -1,3 +1,7 @@
 import Stripe from 'stripe';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const secretKey = process.env.STRIPE_SECRET_KEY;
+if (!secretKey?.startsWith('sk_test_')) {
+  throw new Error('STRIPE_SECRET_KEY must be a Stripe test key');
+}
+export const stripe = new Stripe(secretKey, { timeout: 10_000, maxNetworkRetries: 0 });

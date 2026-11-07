@@ -127,7 +127,7 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-PR CI targets `main`. Test execution in CI is handled by a separate pull request; this feature keeps
-its test commands available locally without changing CI. No production credentials are required.
+PR CI targets `develop` and `main` and runs the unit, component and database integration tests.
+No production credentials are required.
 
-See [acceptance evidence](testing/issue-21-acceptance.md) for executed scenarios and results.
+See [acceptance evidence](issue-21-acceptance.md) for executed scenarios and results.

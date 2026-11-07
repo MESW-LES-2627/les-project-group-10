@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: validate
+    name: Deploy ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_VERSION: '22'
+      DEPLOY_TARGET: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      VERCEL_ORG_ID: team_cG3CveVNJvYQfNudXEr9srwt
+      VERCEL_PROJECT_ID: ${{ github.ref_name == 'main' && 'prj_Vk1vscCrsqdTws1zzGKvluEryXw3' || 'prj_BaFanLLpy6enxObnHC4EFFCYz7q9' }}
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root tools
+        run: npm ci
+        env:
+          HUSKY: 0
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build deployment bundle
+        run: npm run deploy:build
+
+      - name: Test deployment publishing
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Prepare environment file for migration command
+        run: cp .env.example .env
+
+      - name: Apply database migrations
+        run: npm --prefix backend run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets[github.ref_name == 'main' && 'PRODUCTION_DATABASE_URL' || 'STAGING_DATABASE_URL'] }}
+
+      - name: Deploy to Vercel
+        run: node scripts/publish-deployment.mjs "$DEPLOY_TARGET"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
