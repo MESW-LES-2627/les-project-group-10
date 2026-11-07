@@ -11,29 +11,19 @@ permissions:
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy ${{ matrix.target }}
+    name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: staging
-            database_secret: STAGING_DATABASE_URL
-            project_id: prj_BaFanLLpy6enxObnHC4EFFCYz7q9
-            health_url: https://les-staging.simaob.com/api/health
-          - target: production
-            database_secret: PRODUCTION_DATABASE_URL
-            project_id: prj_Vk1vscCrsqdTws1zzGKvluEryXw3
-            health_url: https://les.simaob.com/api/health
     env:
       NODE_VERSION: '22'
+      DEPLOY_TARGET: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
       VERCEL_ORG_ID: team_cG3CveVNJvYQfNudXEr9srwt
-      VERCEL_PROJECT_ID: ${{ matrix.project_id }}
+      VERCEL_PROJECT_ID: ${{ github.ref_name == 'main' && 'prj_Vk1vscCrsqdTws1zzGKvluEryXw3' || 'prj_BaFanLLpy6enxObnHC4EFFCYz7q9' }}
+      HEALTH_URL: ${{ github.ref_name == 'main' && 'https://les.simaob.com/api/health' || 'https://les-staging.simaob.com/api/health' }}
     steps:
       - name: Check out protected branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -64,23 +54,26 @@ jobs:
       - name: Build deployment bundle
         run: npm run deploy:build
 
+      - name: Test deployment publishing
+        run: node --test scripts/tests/*.test.mjs
+
       - name: Prepare environment file for migration command
         run: cp .env.example .env
 
       - name: Apply database migrations
         run: npm --prefix backend run db:migrate
         env:
-          DATABASE_URL: ${{ secrets[matrix.database_secret] }}
+          DATABASE_URL: ${{ secrets[github.ref_name == 'main' && 'PRODUCTION_DATABASE_URL' || 'STAGING_DATABASE_URL'] }}
 
       - name: Deploy to Vercel
-        run: node scripts/publish-deployment.mjs ${{ matrix.target }}
+        run: node scripts/publish-deployment.mjs "$DEPLOY_TARGET"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Check public API health
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 --retry-all-errors '${{ matrix.health_url }}')"
+          response="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --retry 10 --retry-connrefused --retry-delay 2 --retry-all-errors "$HEALTH_URL")"
           RESPONSE="$response" node --input-type=module -e '
             const body = JSON.parse(process.env.RESPONSE);
             if (body.status !== "ok") {

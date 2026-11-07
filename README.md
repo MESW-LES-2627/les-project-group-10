@@ -2,6 +2,8 @@
 
 Platform connecting students with tutors, mentors and industry professionals.
 
+See [Deployment](docs/deployment.md) for the Vercel/Neon setup and the `develop` staging → `main` production release flow.
+
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
 verify and complete user stories.
 

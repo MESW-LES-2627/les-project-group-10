@@ -36,6 +36,7 @@ jobs:
         env:
           HUSKY: 0
       - run: npm run format:check
+      - run: node --test scripts/tests/*.test.mjs
   backend:
     name: Backend
     runs-on: ubuntu-latest

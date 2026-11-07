@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -35,7 +35,8 @@ try {
   await cp(path.join(root, '.vercel/output'), path.join(temporary, '.vercel/output'), {
     recursive: true,
   });
-  await cp(projectPath, path.join(temporary, '.vercel/project.json'));
+  await mkdir(path.join(temporary, '.vercel'), { recursive: true });
+  await writeFile(path.join(temporary, '.vercel/project.json'), JSON.stringify(project));
   const expectedName = target === 'staging' ? 'feup-connect-staging' : 'feup-connect-production';
   const inspect = spawnSync(
     'npx',
