@@ -2,6 +2,8 @@
 
 Platform connecting students with tutors, mentors and industry professionals.
 
+See the [documentation index](docs/README.md) for feature guides and project notes.
+
 See [Deployment](docs/deployment.md) for the Vercel/Neon setup and the `develop` staging → `main` production release flow.
 
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
@@ -177,8 +179,6 @@ and Zod schemas. It uses no database or network, and makes no Stripe calls.
 `TEST_DATABASE_URL=postgres://.../feup_connect_test npm run test:integration` from `backend/`.
 Use a disposable database whose name ends in `_test`. These tests cover profiles, booking
 reservations, concurrent checkout and deployment readiness. Stripe is mocked. CI runs both suites.
-Expired checkout attempts cannot be reused. Checkout verifies only its retry and expired
-reservations for the requested slot; an unrelated Stripe failure does not block another slot.
 
 Frontend tests are a mix of:
 
