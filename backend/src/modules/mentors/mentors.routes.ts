@@ -12,6 +12,13 @@ import {
   updateMentorProfile,
 } from './mentors.queries.js';
 import { mentorOnboardingSchema, mentorProfileSchema } from './mentors.schemas.js';
+import {
+  createMentorSlot,
+  deleteMentorSlot,
+  listMentorSlots,
+  updateMentorSlot,
+} from './mentors.slots.queries.js';
+import { mentorSlotSchema } from './mentors.slots.schemas.js';
 
 export const mentorsRouter = Router();
 
@@ -34,6 +41,36 @@ mentorsRouter.put('/me/profile', requireAuth, async (req, res) => {
     updateMentorProfile(client, res.locals.user.id, input),
   );
   res.json({ profile });
+});
+
+mentorsRouter.get('/me/slots', requireAuth, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ slots: await listMentorSlots(res.locals.user.id) });
+});
+
+mentorsRouter.post('/me/slots', requireAuth, async (req, res) => {
+  const input = parseBody(mentorSlotSchema, req.body);
+  const slot = await withTransaction((client) =>
+    createMentorSlot(client, res.locals.user.id, input),
+  );
+  res.status(201).json({ slot });
+});
+
+mentorsRouter.put('/me/slots/:id', requireAuth, async (req, res) => {
+  const id = z.guid().safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'slot_not_found', 'Slot not found');
+  const input = parseBody(mentorSlotSchema, req.body);
+  const slot = await withTransaction((client) =>
+    updateMentorSlot(client, res.locals.user.id, id.data, input),
+  );
+  res.json({ slot });
+});
+
+mentorsRouter.delete('/me/slots/:id', requireAuth, async (req, res) => {
+  const id = z.guid().safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'slot_not_found', 'Slot not found');
+  await withTransaction((client) => deleteMentorSlot(client, res.locals.user.id, id.data));
+  res.status(204).end();
 });
 
 // A mentor's public profile. Anyone can read it, logged in or not.

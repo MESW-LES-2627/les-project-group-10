@@ -91,8 +91,10 @@ beforeAll(async () => {
   );
   serviceId = service.rows[0].id;
   const slot = await pool.query(
-    "INSERT INTO mentor_availability_slot (mentor_id, starts_at) VALUES ($1, now() + interval '1 day') RETURNING id, starts_at",
-    [ids.owner],
+    `INSERT INTO mentor_availability_slot (mentor_id, service_id, starts_at, ends_at)
+     VALUES ($1, $2, now() + interval '1 day', now() + interval '1 day' + interval '60 minutes')
+     RETURNING id, starts_at`,
+    [ids.owner, serviceId],
   );
   const booking = await pool.query(
     "INSERT INTO booking (student_id,service_id,scheduled_at,availability_slot_id,status) VALUES ($1,$2,$3,$4,'confirmed') RETURNING id",

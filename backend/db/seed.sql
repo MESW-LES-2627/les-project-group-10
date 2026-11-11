@@ -123,22 +123,6 @@ WHERE m.user_id = v.user_id::uuid;
 UPDATE mentor SET onboarding_finished = true
 WHERE user_id::text LIKE '10000000-0000-0000-0000-%';
 
--- Seed bookable times separately so rerunning the seed adds only new future slots.
-INSERT INTO mentor_availability_slot (mentor_id, starts_at)
-SELECT m.user_id,
-       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon'
-FROM mentor m
-JOIN "user" u ON u.id = m.user_id
-CROSS JOIN LATERAL generate_series(
-  current_date + 1,
-  current_date + 30,
-  interval '1 day'
-) AS days(slot_day)
-CROSS JOIN (VALUES (TIME '09:00'), (TIME '11:00'), (TIME '14:00'), (TIME '16:00')) AS times(start_time)
-WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
-  AND EXTRACT(ISODOW FROM slot_day) BETWEEN 1 AND 5
-ON CONFLICT (mentor_id, starts_at) DO NOTHING;
-
 -- ---------------------------------------------------------------------------
 -- Mentor <-> category
 -- ---------------------------------------------------------------------------
@@ -192,6 +176,31 @@ FROM (VALUES
    'Calculus tutoring', 'Limits, derivatives and integrals.', 1200, 60, true)
 ) AS v(id, mentor_id, title, description, price_cents, duration_minutes, is_active)
 ON CONFLICT DO NOTHING;
+
+-- Seed bookable times separately so rerunning the seed adds only new future slots.
+-- Each mentor's cheapest active service stands in for "the service this slot is for";
+-- none of the fixed times below overlap once that service's duration is added.
+INSERT INTO mentor_availability_slot (mentor_id, service_id, starts_at, ends_at)
+SELECT m.user_id, svc.id,
+       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon',
+       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon'
+         + (svc.duration_minutes || ' minutes')::interval
+FROM mentor m
+JOIN "user" u ON u.id = m.user_id
+JOIN LATERAL (
+  SELECT id, duration_minutes FROM service
+   WHERE mentor_id = m.user_id AND is_active
+   ORDER BY price_cents, title LIMIT 1
+) svc ON true
+CROSS JOIN LATERAL generate_series(
+  current_date + 1,
+  current_date + 30,
+  interval '1 day'
+) AS days(slot_day)
+CROSS JOIN (VALUES (TIME '09:00'), (TIME '11:00'), (TIME '14:00'), (TIME '16:00')) AS times(start_time)
+WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
+  AND EXTRACT(ISODOW FROM slot_day) BETWEEN 1 AND 5
+ON CONFLICT (mentor_id, starts_at) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- Bookings: all four statuses; Ana and Diogo book as students with other mentors

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Bookmark,
   Calendar,
+  Clock,
   LogOut,
   MessageSquare,
   Search,
@@ -69,7 +70,10 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
         {[
           ...RAIL_ITEMS,
           ...(user?.isMentor
-            ? [{ label: 'My profile', icon: UserRound, href: '/dashboard/profile' }]
+            ? [
+                { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
+                { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
+              ]
             : []),
         ].map((item) => {
           const active = isActiveItem(item.href, pathname, hash);
