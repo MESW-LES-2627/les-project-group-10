@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import EditMentorProfilePage from '@/pages/mentors/EditMentorProfilePage';
+import MentorServicesPage from '@/pages/dashboard/MentorServicesPage';
 import LandingPage from '@/pages/landing/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
@@ -52,6 +53,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <EditMentorProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/services',
+    element: (
+      <RequireAuth>
+        <MentorServicesPage />
       </RequireAuth>
     ),
   },
