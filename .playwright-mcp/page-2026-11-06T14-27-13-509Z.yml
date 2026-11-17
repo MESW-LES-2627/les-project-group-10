@@ -1,0 +1,218 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "feup.connect" [ref=e5] [cursor=pointer]:
+      - /url: /
+    - navigation [ref=e11]:
+      - link "Find a mentor" [ref=e12] [cursor=pointer]:
+        - /url: /mentors
+      - link "How it works" [ref=e13] [cursor=pointer]:
+        - /url: /#how-it-works
+      - link "Free resources" [ref=e14] [cursor=pointer]:
+        - /url: /#resources
+      - link "For mentors" [ref=e15] [cursor=pointer]:
+        - /url: /#for-mentors
+    - generic [ref=e16]:
+      - link "Log in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /signup
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - paragraph [ref=e23]: For FEUP students & alumni
+      - heading "Find the mentor who gets you." [level=1] [ref=e24]
+      - paragraph [ref=e25]: Learn from tutors, mentors and industry pros who’ve walked your path. Compare fees, book a session and get real answers. One clear step at a time.
+      - generic [ref=e26]:
+        - link "Find a mentor" [ref=e27] [cursor=pointer]:
+          - /url: /mentors
+        - link "How it works" [ref=e30] [cursor=pointer]:
+          - /url: /#how-it-works
+      - generic [ref=e31]:
+        - paragraph [ref=e35]: Verified mentors
+        - paragraph [ref=e39]: Pay only per session
+        - paragraph [ref=e43]: No subscription
+    - generic [ref=e44]:
+      - generic [ref=e47]:
+        - generic [ref=e48]: MS
+        - generic [ref=e49]:
+          - paragraph [ref=e50]: Pius Osuji
+          - paragraph [ref=e51]: Software Engineering · €35/session
+          - paragraph [ref=e55]: 4.9 · 128 reviews
+      - paragraph [ref=e63]: Book. Pay. Learn.All in one place.
+      - paragraph [ref=e72]: Next session · Tue 14:00
+      - paragraph [ref=e78]: 1,200+ students helped
+  - generic [ref=e79]:
+    - generic [ref=e80]:
+      - paragraph [ref=e81]: 1,200+
+      - paragraph [ref=e82]: students helped
+    - generic [ref=e83]:
+      - paragraph [ref=e84]: 180+
+      - paragraph [ref=e85]: active mentors
+    - generic [ref=e86]:
+      - paragraph [ref=e87]: 4.8★
+      - paragraph [ref=e88]: average rating
+    - generic [ref=e89]:
+      - paragraph [ref=e90]: €28
+      - paragraph [ref=e91]: average session price
+  - generic [ref=e92]:
+    - generic [ref=e93]:
+      - paragraph [ref=e94]: How it works
+      - paragraph [ref=e95]: Three steps to your first session
+    - generic [ref=e96]:
+      - generic [ref=e97]:
+        - paragraph [ref=e101]: "01"
+        - paragraph [ref=e102]: Find your mentor
+        - paragraph [ref=e103]: Search by subject, budget and availability. Compare fees and read real reviews.
+      - generic [ref=e104]:
+        - paragraph [ref=e109]: "02"
+        - paragraph [ref=e110]: Book & pay securely
+        - paragraph [ref=e111]: Pick a time, complete a mock payment, and get an instant booking confirmation.
+      - generic [ref=e112]:
+        - paragraph [ref=e118]: "03"
+        - paragraph [ref=e119]: Meet & learn
+        - paragraph [ref=e120]: Prepare for your session. Meeting links and chat are not yet available in this prototype.
+  - generic [ref=e121]:
+    - generic [ref=e122]:
+      - generic [ref=e123]:
+        - paragraph [ref=e124]: Featured mentors
+        - paragraph [ref=e125]: Learn from people who’ve done it
+      - link "Browse all mentors" [ref=e126] [cursor=pointer]:
+        - /url: /mentors
+    - generic [ref=e130]:
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - generic [ref=e133]: PO
+          - generic [ref=e134]:
+            - paragraph [ref=e135]: Pius Osuji
+            - paragraph [ref=e136]: Senior Software Engineer
+        - generic [ref=e137]: Algorithms
+        - generic [ref=e139]:
+          - paragraph [ref=e143]: "4.9"
+          - paragraph [ref=e144]:
+            - generic [ref=e145]: €35
+            - generic [ref=e146]: / session
+        - link "View profile" [ref=e147] [cursor=pointer]:
+          - /url: /login?next=%2Fmentors%2Fpius-osuji
+      - generic [ref=e148]:
+        - generic [ref=e149]:
+          - generic [ref=e150]: JF
+          - generic [ref=e151]:
+            - paragraph [ref=e152]: João Ferreira
+            - paragraph [ref=e153]: PhD Researcher, ML
+        - generic [ref=e154]: Machine learning
+        - generic [ref=e156]:
+          - paragraph [ref=e160]: "4.8"
+          - paragraph [ref=e161]:
+            - generic [ref=e162]: €25
+            - generic [ref=e163]: / session
+        - link "View profile" [ref=e164] [cursor=pointer]:
+          - /url: /login?next=%2Fmentors%2Fjoao-ferreira
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - generic [ref=e167]: IC
+          - generic [ref=e168]:
+            - paragraph [ref=e169]: Inês Costa
+            - paragraph [ref=e170]: Software Architect
+        - generic [ref=e171]: Architecture
+        - generic [ref=e173]:
+          - paragraph [ref=e177]: "4.7"
+          - paragraph [ref=e178]:
+            - generic [ref=e179]: €40
+            - generic [ref=e180]: / session
+        - link "View profile" [ref=e181] [cursor=pointer]:
+          - /url: /login?next=%2Fmentors%2Fines-costa
+  - generic [ref=e182]:
+    - generic [ref=e183]:
+      - paragraph [ref=e184]: For mentors
+      - paragraph [ref=e185]: Share what you know. Get paid for your time.
+      - paragraph [ref=e186]: Set your own fee, choose your hours, and help students one session at a time. FEUP Connect handles booking, payment and scheduling.
+      - generic [ref=e187]:
+        - link "Become a mentor" [ref=e188] [cursor=pointer]:
+          - /url: /signup
+        - link "See how it works" [ref=e191] [cursor=pointer]:
+          - /url: /#how-it-works
+    - generic [ref=e192]:
+      - generic [ref=e196]:
+        - paragraph [ref=e197]: You set the price
+        - paragraph [ref=e198]: From €10 to €100+ per session
+      - generic [ref=e202]:
+        - paragraph [ref=e203]: You set the hours
+        - paragraph [ref=e204]: Open only the slots that work for you
+      - generic [ref=e209]:
+        - paragraph [ref=e210]: Secure, verified payouts
+        - paragraph [ref=e211]: Tracked automatically after each session
+  - generic [ref=e212]:
+    - generic [ref=e213]:
+      - generic [ref=e214]:
+        - paragraph [ref=e215]: Free resources
+        - paragraph [ref=e216]: Learn something before you even book
+      - paragraph [ref=e217]: View all posts →
+    - generic [ref=e218]:
+      - generic [ref=e219]:
+        - generic [ref=e220]: Interviews
+        - paragraph [ref=e221]: 5 patterns that cover 80% of coding interviews
+        - paragraph [ref=e222]: Sliding window, two pointers and the rest — mapped to FEUP exercises.
+        - paragraph [ref=e227]: Pius Osuji · 6 min read
+      - generic [ref=e228]:
+        - generic [ref=e229]: Internships
+        - paragraph [ref=e230]: How I’d apply for a summer internship in 2027
+        - paragraph [ref=e231]: A month-by-month plan, plus the CV mistakes I see most often.
+        - paragraph [ref=e236]: Inês Costa · 4 min read
+      - generic [ref=e237]:
+        - generic [ref=e238]: Thesis
+        - paragraph [ref=e239]: Structuring your MSc dissertation without losing your mind
+        - paragraph [ref=e240]: A chapter-by-chapter template that actually gets approved.
+        - paragraph [ref=e245]: João Ferreira · 8 min read
+  - generic [ref=e246]:
+    - generic [ref=e247]:
+      - paragraph [ref=e248]: FAQ
+      - paragraph [ref=e249]: Questions?We’ve got you.
+      - paragraph [ref=e250]: Can’t find what you’re looking for?
+      - link "Contact support" [ref=e251] [cursor=pointer]:
+        - /url: /contact
+    - generic [ref=e252]:
+      - group [ref=e253]:
+        - paragraph [ref=e255] [cursor=pointer]: How much does a session cost?
+      - group [ref=e258]:
+        - paragraph [ref=e260] [cursor=pointer]: Is my payment secure?
+      - group [ref=e263]:
+        - paragraph [ref=e265] [cursor=pointer]: What happens after I book?
+      - group [ref=e268]:
+        - paragraph [ref=e270] [cursor=pointer]: Can I become a mentor?
+  - generic [ref=e273]:
+    - paragraph [ref=e274]: Ready to find your mentor?
+    - paragraph [ref=e275]: Join 1,200+ FEUP students already learning with FEUP Connect.
+    - link "Get started — it’s free" [ref=e276] [cursor=pointer]:
+      - /url: /signup
+  - contentinfo [ref=e279]:
+    - generic [ref=e280]:
+      - generic [ref=e281]:
+        - link "feup.connect" [ref=e282] [cursor=pointer]:
+          - /url: /
+        - paragraph [ref=e288]: Connecting FEUP students with tutors, mentors and industry professionals.
+      - generic [ref=e289]:
+        - paragraph [ref=e290]: Platform
+        - paragraph [ref=e291]: Find a mentor
+        - paragraph [ref=e292]: How it works
+        - paragraph [ref=e293]: Free resources
+        - paragraph [ref=e294]: Pricing
+      - generic [ref=e295]:
+        - paragraph [ref=e296]: For mentors
+        - paragraph [ref=e297]: Become a mentor
+        - paragraph [ref=e298]: Mentor resources
+        - paragraph [ref=e299]: Payouts
+      - generic [ref=e300]:
+        - paragraph [ref=e301]: Company
+        - paragraph [ref=e302]: About us
+        - paragraph [ref=e303]: Careers
+        - paragraph [ref=e304]: Contact
+      - generic [ref=e305]:
+        - paragraph [ref=e306]: Legal
+        - paragraph [ref=e307]: Terms of Service
+        - paragraph [ref=e308]: Privacy Policy
+        - paragraph [ref=e309]: Cookie Policy
+    - generic [ref=e311]:
+      - paragraph [ref=e312]: © 2026 FEUP Connect. Built by students, for students.
+      - generic [ref=e313]:
+        - paragraph [ref=e314]: Instagram
+        - paragraph [ref=e315]: LinkedIn
+        - paragraph [ref=e316]: Email
