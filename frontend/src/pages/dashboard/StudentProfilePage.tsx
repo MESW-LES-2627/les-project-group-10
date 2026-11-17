@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { Avatar, Tag, buttonVariants } from '@/components/ui';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
@@ -70,11 +70,13 @@ export default function StudentProfilePage() {
               <p className="truncate font-sans text-base text-ink-soft">{user?.email}</p>
             </div>
           </div>
-          {/* Design only for now: the edit page is not built yet. */}
-          <button type="button" className={buttonVariants({ variant: 'outlined', size: 'md' })}>
+          <Link
+            to="/dashboard/student/edit"
+            className={buttonVariants({ variant: 'outlined', size: 'md' })}
+          >
             <Pencil className="size-4" />
             Edit profile
-          </button>
+          </Link>
         </section>
 
         <section className="flex flex-col gap-5 rounded-[20px] border border-line bg-surface p-7">
@@ -108,7 +110,7 @@ export default function StudentProfilePage() {
                     <ul className="flex flex-wrap gap-2">
                       {profile.categories.map((category) => (
                         <li key={category.id}>
-                          <Tag label={category.name} tone="blue" />
+                          <Tag label={category.name} tone="dark" />
                         </li>
                       ))}
                     </ul>

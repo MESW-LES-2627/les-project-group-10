@@ -14,8 +14,7 @@ item in the dashboard sidebar or by clicking their avatar in the top-right corne
 | Budget per session | `student.budget_min_cents` / `budget_max_cents`, shown in € |
 | Interests          | `student_category` joined with `category` (names)           |
 
-Fields the student has not filled in show "Not set yet". The **Edit profile** button is design only
-for now: the edit page is a separate feature.
+Fields the student has not filled in show "Not set yet". **Edit profile** opens the edit page.
 
 ## Behavior
 
@@ -24,6 +23,24 @@ for now: the edit page is a separate feature.
   the mentor editor at `/dashboard/profile` instead.
 - The backend is the real guard: `GET /api/students/me` answers `401` without a session and `403`
   when the account has no `student` row. The id always comes from the session cookie.
+
+## Editing
+
+**Edit profile** opens `/dashboard/student/edit` (behind sign-in; accounts without a student profile
+are redirected to `/dashboard`). The form edits programme, enrollment year, study level, budget and
+interests. Name and email belong to the account and are not editable here.
+
+- **Save changes** sends one `PATCH /api/students/me` and returns to the profile page, which shows
+  the saved data. **Cancel** returns without saving and discards unsaved changes.
+- Server errors are shown next to the field they belong to. Other failures show a message above the
+  buttons and keep the student's changes in the form.
+- Programme and enrollment year can be emptied, which clears them. The study level dropdown has no
+  empty choice, so a saved level can be changed but not removed. Removing every interest clears them.
+- The budget is only sent if the slider was moved, so opening the page and saving never stores the
+  slider defaults. Saved budgets are shown rounded to the slider's steps (€5).
+- The enrollment year must be four digits; anything else is rejected in the browser before sending.
+- If the subject areas cannot be loaded, the interests section shows an error with **Try again** and
+  the saved interests are left untouched on save.
 
 ## Onboarding
 
@@ -50,8 +67,8 @@ clearing saved values.
 `budgetMinCents`, `budgetMaxCents`, `categoryIds` and `categories` (`[{ id, name }]`, sorted by
 name). `categoryIds` is kept for the `PATCH` below.
 
-`PATCH /api/students/me` takes a partial body: `studyLevel`, `budgetMinCents`, `budgetMaxCents`,
-`categoryIds` (omitted = untouched, `null` = cleared, `categoryIds` replaces the whole set) and
+`PATCH /api/students/me` takes a partial body: `programme`, `enrollmentYear`, `studyLevel`,
+`budgetMinCents`, `budgetMaxCents`, `categoryIds` (omitted = untouched, `null` = cleared, `categoryIds` replaces the whole set) and
 returns the updated profile. Errors use the shared shape `{ error: { code, message, fields? } }`:
 `400 validation_error` with one message per field, and `403 not_a_student`.
 

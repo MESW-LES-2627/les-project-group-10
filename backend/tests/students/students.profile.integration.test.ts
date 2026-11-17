@@ -171,6 +171,21 @@ describe('PATCH /api/students/me', () => {
     expect((await (await getProfile(ids.patcher)).json()).categories).toEqual(before.categories);
   });
 
+  it('edits programme and enrollment year, and clears them with null', async () => {
+    const saved = await patchProfile(ids.patcher, { programme: '  MESW ', enrollmentYear: 2024 });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({ programme: 'MESW', enrollmentYear: 2024 });
+
+    const cleared = await patchProfile(ids.patcher, { programme: null, enrollmentYear: null });
+    expect(await cleared.json()).toMatchObject({ programme: null, enrollmentYear: null });
+  });
+
+  it('rejects an out-of-range enrollment year with a field message', async () => {
+    const response = await patchProfile(ids.patcher, { enrollmentYear: 1850 });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.fields.enrollmentYear).toMatch(/2000 or later/);
+  });
+
   it('answers 403 with a code for an account that has no student profile', async () => {
     const response = await patchProfile(ids.mentorOnly, { studyLevel: 'Master' });
     expect(response.status).toBe(403);

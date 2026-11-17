@@ -31,6 +31,8 @@ export function getStudentProfile(): Promise<StudentProfile> {
  * the whole set of interests.
  */
 export interface UpdateStudentProfileInput {
+  programme?: string | null;
+  enrollmentYear?: number | null;
   studyLevel?: string | null;
   budgetMinCents?: number | null;
   budgetMaxCents?: number | null;

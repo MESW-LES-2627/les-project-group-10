@@ -23,6 +23,20 @@ const budgetCents = (label: string) =>
 
 export const updateStudentProfileSchema = z
   .object({
+    programme: z
+      .string()
+      .trim()
+      .min(1, 'Programme cannot be empty')
+      .max(100, 'Programme must be at most 100 characters')
+      .nullable()
+      .optional(),
+    enrollmentYear: z
+      .number()
+      .int('Enrollment year must be a whole number')
+      .min(2000, 'Enrollment year must be 2000 or later')
+      .max(2100, 'Enrollment year must be 2100 or earlier')
+      .nullable()
+      .optional(),
     studyLevel: z
       .string()
       .trim()

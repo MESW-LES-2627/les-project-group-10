@@ -7,17 +7,9 @@ import type { InfoNoteTone } from '@/components/ui';
 import { ApiError } from '@/api/client';
 import { updateStudentProfile } from '@/api/students';
 import type { UpdateStudentProfileInput } from '@/api/students';
+import { BUDGET_SLIDER, STUDY_LEVELS } from '@/lib/studentProfile';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { useStudentOnboarding } from './useStudentOnboarding';
-
-const STUDY_LEVELS = [
-  "Bachelor's (1st year)",
-  "Bachelor's (2nd year)",
-  "Bachelor's (3rd year)",
-  "Integrated Master's",
-  "Master's",
-  'PhD',
-];
 
 const TIP_TONE: InfoNoteTone = 'accent';
 
@@ -92,9 +84,9 @@ export default function StudentPreferencesStep() {
       >
         <RangeSlider
           label="Budget per session"
-          min={10}
-          max={80}
-          step={5}
+          min={BUDGET_SLIDER.min}
+          max={BUDGET_SLIDER.max}
+          step={BUDGET_SLIDER.step}
           valueMin={data.budgetMin}
           valueMax={data.budgetMax}
           onChange={({ min, max }) => updateData({ budgetMin: min, budgetMax: max })}

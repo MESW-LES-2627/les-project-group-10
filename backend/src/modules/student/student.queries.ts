@@ -42,6 +42,8 @@ export class ProfileValidationError extends Error {
 // Whitelist: request field -> column. Column names come from this map only, never from the
 // client, so building the SET clause from it is safe. Values are always parameterized.
 const COLUMNS = {
+  programme: 'programme',
+  enrollmentYear: 'enrollment_year',
   studyLevel: 'study_level',
   budgetMinCents: 'budget_min_cents',
   budgetMaxCents: 'budget_max_cents',
