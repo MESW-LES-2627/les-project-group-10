@@ -147,7 +147,9 @@ describe('mentor profile HTTP and persistence', () => {
       skills: [],
     });
     expect(result.subjectOptions).toEqual(expect.arrayContaining(categoryNames));
-    expect(result.subjectOptions).toEqual([...result.subjectOptions].sort());
+    // PostgreSQL's collation determines alphabetical order, which differs across hosts.
+    const options = await pool.query<{ name: string }>('SELECT name FROM category ORDER BY name');
+    expect(result.subjectOptions).toEqual(options.rows.map((row) => row.name));
   });
 
   it('persists normalized changes, replacing subjects and updating anonymous reads', async () => {

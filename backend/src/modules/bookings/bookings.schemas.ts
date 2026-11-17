@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const bookingIdSchema = z.guid();
+
 export const stripeCheckoutSchema = z.object({
   serviceId: z.guid(),
   date: z.iso.date(),

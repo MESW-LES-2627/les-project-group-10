@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { pool } from '../../db/pool.js';
+import { withTransaction } from '../../db/transaction.js';
 import { HttpError } from '../../middleware/errorHandler.js';
 import type { StripeCheckoutInput } from './bookings.schemas.js';
 
@@ -24,11 +25,14 @@ export async function createPendingBooking(
     payment_status: 'pending' | 'succeeded' | 'failed';
     stripe_payment_intent_id: string | null;
     amount_cents: number;
+    booking_status: string;
+    reservation_valid: boolean;
   }>(
     `SELECT p.id AS payment_id, b.id AS booking_id, b.student_id, b.service_id,
             to_char(b.scheduled_at AT TIME ZONE 'Europe/Lisbon', 'YYYY-MM-DD') AS date,
             to_char(b.scheduled_at AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS time,
-            p.status AS payment_status, p.stripe_payment_intent_id, p.amount_cents
+            p.status AS payment_status, p.stripe_payment_intent_id, p.amount_cents,
+            b.status AS booking_status, p.reservation_expires_at > clock_timestamp() AS reservation_valid
        FROM payment p JOIN booking b ON b.id = p.booking_id
       WHERE p.idempotency_key = $1 FOR UPDATE OF p, b`,
     [input.idempotencyKey],
@@ -43,7 +47,11 @@ export async function createPendingBooking(
     ) {
       throw new HttpError(409, 'idempotency_key_reused', 'Start a new payment attempt');
     }
-    if (existing.payment_status !== 'pending') {
+    if (
+      existing.payment_status !== 'pending' ||
+      existing.booking_status !== 'pending_payment' ||
+      !existing.reservation_valid
+    ) {
       throw new HttpError(409, 'payment_attempt_closed', 'Start a new checkout attempt');
     }
     return {
@@ -83,14 +91,13 @@ export async function createPendingBooking(
   const slot = slotResult.rows[0];
   if (!slot) throw new HttpError(409, 'slot_unavailable', 'That time is no longer available');
 
-  // Expire stale reservations before the active-slot unique index checks this slot.
-  await client.query(
-    `UPDATE booking b SET status = 'cancelled'
-       FROM payment p WHERE p.booking_id = b.id AND b.availability_slot_id = $1
-         AND b.status = 'pending_payment' AND p.status = 'pending'
-         AND p.reservation_expires_at <= now()`,
+  // Stripe must be reconciled before releasing a reservation, even after its deadline.
+  const occupied = await client.query(
+    "SELECT 1 FROM booking WHERE availability_slot_id = $1 AND status <> 'cancelled'",
     [slot.id],
   );
+  if (occupied.rowCount)
+    throw new HttpError(409, 'slot_unavailable', 'That time is no longer available');
   const amountCents = service.price_cents + PLATFORM_FEE_CENTS;
   const booking = await client.query<{ id: string }>(
     `INSERT INTO booking (student_id, service_id, scheduled_at, status, availability_slot_id,
@@ -121,36 +128,95 @@ export async function createPendingBooking(
 }
 
 export async function attachPaymentIntent(paymentId: string, intentId: string) {
-  await pool.query('UPDATE payment SET stripe_payment_intent_id = $2 WHERE id = $1', [
-    paymentId,
-    intentId,
-  ]);
+  const result = await pool.query(
+    `UPDATE payment p SET stripe_payment_intent_id = $2 FROM booking b
+      WHERE p.id = $1 AND b.id = p.booking_id AND p.status = 'pending'
+        AND b.status = 'pending_payment' AND p.reservation_expires_at > clock_timestamp()
+        AND (p.stripe_payment_intent_id IS NULL OR p.stripe_payment_intent_id = $2)`,
+    [paymentId, intentId],
+  );
+  return result.rowCount === 1;
 }
 
-export async function findPendingStripePayments() {
-  const { rows } = await pool.query<{ stripe_payment_intent_id: string }>(
-    `SELECT p.stripe_payment_intent_id FROM payment p
+export type PaymentScope = {
+  studentId: string;
+  bookingId?: string;
+  checkout?: StripeCheckoutInput;
+};
+
+export async function findPendingStripePayments(scope: PaymentScope) {
+  const { rows } = await pool.query<{
+    id: string;
+    stripe_payment_intent_id: string | null;
+    reservation_expires_at: Date;
+    amount_cents: number;
+  }>(
+    `SELECT p.id, p.stripe_payment_intent_id, p.reservation_expires_at, p.amount_cents FROM payment p
        JOIN booking b ON b.id = p.booking_id
       WHERE p.status = 'pending' AND b.status = 'pending_payment'
-        AND p.stripe_payment_intent_id IS NOT NULL`,
+        AND CASE WHEN $3::uuid IS NULL THEN
+          b.student_id = $1 AND ($2::uuid IS NULL OR b.id = $2)
+        ELSE
+          (b.student_id = $1 AND p.idempotency_key = $3) OR
+          (p.reservation_expires_at <= clock_timestamp() AND b.availability_slot_id IN (
+            SELECT slot.id FROM mentor_availability_slot slot JOIN service s ON s.mentor_id = slot.mentor_id
+             WHERE s.id = $4 AND slot.starts_at = (($5::date + $6::time) AT TIME ZONE 'Europe/Lisbon')
+          ))
+        END`,
+    [
+      scope.studentId,
+      scope.bookingId ?? null,
+      scope.checkout?.idempotencyKey ?? null,
+      scope.checkout?.serviceId ?? null,
+      scope.checkout?.date ?? null,
+      scope.checkout?.time ?? null,
+    ],
   );
-  return rows.map((row) => row.stripe_payment_intent_id);
+  return rows;
 }
 
-export async function markStripePaymentResult(intentId: string, succeeded: boolean) {
-  return withPaymentLock(async (client) => {
+export async function expireUnattachedPayment(paymentId: string) {
+  return withTransaction(async (client) => {
+    const found = await client.query<{ booking_id: string }>(
+      `SELECT p.booking_id FROM payment p JOIN booking b ON b.id = p.booking_id
+        WHERE p.id = $1 AND p.stripe_payment_intent_id IS NULL AND p.status = 'pending'
+          AND b.status = 'pending_payment' AND p.reservation_expires_at <= clock_timestamp()
+        FOR UPDATE OF p, b`,
+      [paymentId],
+    );
+    if (!found.rows[0]) return;
+    await client.query("UPDATE payment SET status = 'failed' WHERE id = $1", [paymentId]);
+    await client.query("UPDATE booking SET status = 'cancelled' WHERE id = $1", [
+      found.rows[0].booking_id,
+    ]);
+  });
+}
+
+export async function markStripePaymentResult(
+  intentId: string,
+  succeeded: boolean,
+  paidAt = new Date(),
+) {
+  return withTransaction(async (client) => {
     const found = await client.query<{
       id: string;
       booking_id: string;
       status: string;
       reservation_expires_at: Date;
+      booking_status: string;
     }>(
-      'SELECT id, booking_id, status, reservation_expires_at FROM payment WHERE stripe_payment_intent_id = $1 FOR UPDATE',
+      `SELECT p.id, p.booking_id, p.status, p.reservation_expires_at, b.status AS booking_status
+         FROM payment p JOIN booking b ON b.id = p.booking_id
+        WHERE p.stripe_payment_intent_id = $1 FOR UPDATE OF p, b`,
       [intentId],
     );
     const payment = found.rows[0];
     if (!payment || payment.status !== 'pending') return null;
-    const isValid = succeeded && payment.reservation_expires_at > new Date();
+    // A sleeping function may observe success later. Use Stripe's charge time.
+    const isValid =
+      succeeded &&
+      payment.booking_status === 'pending_payment' &&
+      payment.reservation_expires_at >= paidAt;
     await client.query('UPDATE payment SET status = $2 WHERE id = $1', [
       payment.id,
       isValid ? 'succeeded' : 'failed',
