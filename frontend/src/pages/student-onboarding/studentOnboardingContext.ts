@@ -4,7 +4,6 @@ export interface StudentOnboardingData {
   interests: string[];
   budgetMin: number;
   budgetMax: number;
-  availability: string[];
   studyLevel: string | null;
 }
 
@@ -12,7 +11,6 @@ export const DEFAULT_STUDENT_ONBOARDING_DATA: StudentOnboardingData = {
   interests: [],
   budgetMin: 15,
   budgetMax: 40,
-  availability: [],
   studyLevel: null,
 };
 

@@ -1,17 +1,10 @@
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
-import { Button, buttonVariants, Chip, InfoNote, RangeSlider, SelectField } from '@/components/ui';
+import { Button, buttonVariants, InfoNote, RangeSlider, SelectField } from '@/components/ui';
 import type { InfoNoteTone } from '@/components/ui';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { useStudentOnboarding } from './useStudentOnboarding';
-
-const AVAILABILITY_OPTIONS = [
-  'Weekday mornings',
-  'Weekday afternoons',
-  'Weekday evenings',
-  'Weekends',
-];
 
 const STUDY_LEVELS = [
   "Bachelor's (1st year)",
@@ -25,19 +18,11 @@ const STUDY_LEVELS = [
 const TIP_TONE: InfoNoteTone = 'accent';
 
 /**
- * Student onboarding step 2 of 2: budget, availability and study level.
+ * Student onboarding step 2 of 2: budget and study level.
  */
 export default function StudentPreferencesStep() {
   const navigate = useNavigate();
   const { data, updateData } = useStudentOnboarding();
-
-  function toggleAvailability(option: string) {
-    updateData({
-      availability: data.availability.includes(option)
-        ? data.availability.filter((item) => item !== option)
-        : [...data.availability, option],
-    });
-  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,20 +72,6 @@ export default function StudentPreferencesStep() {
           onChange={({ min, max }) => updateData({ budgetMin: min, budgetMax: max })}
           formatValue={(value) => `€${value}`}
         />
-
-        <div className="flex w-full flex-col gap-3">
-          <p className="font-sans text-base font-semibold text-ink">When are you usually free?</p>
-          <div className="flex w-full flex-wrap gap-2.5">
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <Chip
-                key={option}
-                label={option}
-                selected={data.availability.includes(option)}
-                onClick={() => toggleAvailability(option)}
-              />
-            ))}
-          </div>
-        </div>
 
         <SelectField
           label="Study level"
