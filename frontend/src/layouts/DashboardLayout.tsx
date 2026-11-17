@@ -55,7 +55,7 @@ export function DashboardLayout({ title, children }: DashboardLayoutProps) {
             </button>
             <Link
               to={profilePath}
-              aria-label="My profile"
+              aria-label="Your profile"
               className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <Avatar initials={user ? getInitials(user.username) : ''} tone="tertiary" size="sm" />

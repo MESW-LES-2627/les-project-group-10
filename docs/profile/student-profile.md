@@ -74,8 +74,22 @@ returns the updated profile. Errors use the shared shape `{ error: { code, messa
 
 ## Tests
 
-`backend/tests/students/students.profile.integration.test.ts` covers reading a full and an empty
-profile, saving through `PATCH`, a bad budget, an unknown interest, a mentor-only account (403) and
-a missing session (401). `backend/tests/categories/categories.integration.test.ts` covers the
-categories list. Run it with
-`npm run test:integration` and a disposable `TEST_DATABASE_URL` ending in `_test`.
+Backend:
+
+- `backend/tests/students/students.schemas.test.ts` covers the PATCH body rules (unit).
+- `backend/tests/students/students.profile.integration.test.ts` covers reading a full and an empty
+  profile, saving through `PATCH`, editing and clearing programme and enrollment year, a bad budget,
+  an unknown interest, a mentor-only account (403) and a missing session (401).
+- `backend/tests/categories/categories.integration.test.ts` covers the categories list.
+- The integration tests need a disposable `_test` database; see **Testing** in the README.
+
+Frontend (`cd frontend && npm test`), in `frontend/tests/student/`:
+
+- `StudentProfilePage.test.tsx`: shows every field, "Not set yet", a one-sided budget, a load error,
+  the Edit profile link and the redirect for accounts without a student profile.
+- `EditStudentProfilePage.test.tsx`: pre-fill, one PATCH on save, budget only sent after the slider
+  moves, study level change, clearing with `null`, the four-digit year check, server and generic
+  errors, subject-area and profile load retries, Cancel and the redirect.
+- `studentOnboarding.test.tsx`: chips come from the API, retry on failure, nothing saved until
+  **Finish setup**, the request body (budget in cents, omitted study level and interests) and the
+  error handling.
