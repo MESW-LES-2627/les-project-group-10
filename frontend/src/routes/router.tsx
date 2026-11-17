@@ -97,7 +97,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/student-onboarding',
-    element: <StudentOnboardingProvider />,
+    element: (
+      <RequireAuth>
+        <StudentOnboardingProvider />
+      </RequireAuth>
+    ),
     children: [
       { path: 'interests', element: <StudentInterestsStep /> },
       { path: 'preferences', element: <StudentPreferencesStep /> },

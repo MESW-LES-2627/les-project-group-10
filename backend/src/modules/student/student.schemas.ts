@@ -47,13 +47,3 @@ export const updateStudentProfileSchema = z
   );
 
 export type UpdateStudentProfile = z.infer<typeof updateStudentProfileSchema>; // is a type of updateStudentProfileSchema
-
-/**Turns Zod issues into `{field: [messages]}` so the form can show them next to each input */
-export function toFieldErrors(error: z.ZodError): Record<string, string[]> {
-  const fields: Record<string, string[]> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.map(String).join('.') || '_form';
-    (fields[key] ??= []).push(issue.message);
-  }
-  return fields;
-}

@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
 import { Button, buttonVariants, InfoNote, RangeSlider, SelectField } from '@/components/ui';
 import type { InfoNoteTone } from '@/components/ui';
+import { ApiError } from '@/api/client';
+import { updateStudentProfile } from '@/api/students';
+import type { UpdateStudentProfileInput } from '@/api/students';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { useStudentOnboarding } from './useStudentOnboarding';
 
@@ -24,9 +28,32 @@ export default function StudentPreferencesStep() {
   const navigate = useNavigate();
   const { data, updateData } = useStudentOnboarding();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  /** Saves every answer in one request, so nothing is stored unless the whole flow finishes. */
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    navigate('/student-onboarding/all-set');
+    if (saving) return;
+    setSaving(true);
+    setError('');
+
+    // Fields left out of the body stay untouched on the server. Budget is euros here, cents there.
+    const input: UpdateStudentProfileInput = {
+      budgetMinCents: data.budgetMin * 100,
+      budgetMaxCents: data.budgetMax * 100,
+      ...(data.studyLevel ? { studyLevel: data.studyLevel } : {}),
+      ...(data.interests.length > 0 ? { categoryIds: data.interests.map((item) => item.id) } : {}),
+    };
+
+    try {
+      await updateStudentProfile(input);
+      navigate('/student-onboarding/all-set');
+    } catch (err) {
+      setError(saveErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -50,9 +77,10 @@ export default function StudentPreferencesStep() {
             type="submit"
             form="student-preferences-form"
             variant="blue"
+            disabled={saving}
             icon={<ArrowRight className="size-5" />}
           >
-            Finish setup
+            {saving ? 'Saving…' : 'Finish setup'}
           </Button>
         </>
       }
@@ -83,10 +111,27 @@ export default function StudentPreferencesStep() {
         />
       </form>
 
+      {error && (
+        <p role="alert" className="font-sans text-sm text-danger">
+          {error}
+        </p>
+      )}
+
       <InfoNote icon={<Sparkles className="size-5" />} tone={TIP_TONE}>
         We&rsquo;ll use this to show you the most relevant mentors first — you can always change
         filters later.
       </InfoNote>
     </OnboardingLayout>
   );
+}
+
+/** A readable message for a failed save: the server's field message, or a generic fallback. */
+function saveErrorMessage(err: unknown) {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return 'Your session has expired. Please log in again.';
+    const [fieldMessage] = Object.values(err.fields);
+    if (fieldMessage) return fieldMessage;
+    if (err.status < 500) return err.message;
+  }
+  return 'Could not save your answers. Check your connection and try again.';
 }

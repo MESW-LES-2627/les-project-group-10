@@ -1,7 +1,9 @@
 import { createContext } from 'react';
+import type { Category } from '@/api/categories';
 
 export interface StudentOnboardingData {
-  interests: string[];
+  /** Chosen subject areas, kept as database categories so the save can send their ids. */
+  interests: Category[];
   budgetMin: number;
   budgetMax: number;
   studyLevel: string | null;
