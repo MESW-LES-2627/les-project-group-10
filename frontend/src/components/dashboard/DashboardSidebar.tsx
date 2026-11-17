@@ -68,6 +68,9 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {[
           ...RAIL_ITEMS,
+          ...(user?.isStudent
+            ? [{ label: 'Student profile', icon: UserRound, href: '/dashboard/student' }]
+            : []),
           ...(user?.isMentor
             ? [{ label: 'My profile', icon: UserRound, href: '/dashboard/profile' }]
             : []),

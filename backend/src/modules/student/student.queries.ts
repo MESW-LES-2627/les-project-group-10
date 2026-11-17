@@ -4,20 +4,31 @@ import type { UpdateStudentProfile } from './student.schemas.js';
 
 type Queryable = Pool | PoolClient;
 
+export interface StudentInterest {
+  id: string;
+  name: string;
+}
+
 export interface StudentProfile {
   userId: string;
+  programme: string | null;
+  enrollmentYear: number | null;
   studyLevel: string | null;
   budgetMinCents: number | null;
   budgetMaxCents: number | null;
   categoryIds: string[];
+  categories: StudentInterest[];
 }
 
 interface StudentProfileRow {
   user_id: string;
+  programme: string | null;
+  enrollment_year: number | null;
   study_level: string | null;
   budget_min_cents: number | null;
   budget_max_cents: number | null;
   category_ids: string[];
+  categories: StudentInterest[];
 }
 
 /** A save the database rejected because of the data sent. Carries per-field messages. */
@@ -42,15 +53,22 @@ export async function getStudentProfile(
   db: Queryable = pool,
 ): Promise<StudentProfile | null> {
   const { rows } = await db.query<StudentProfileRow>(
-    `SELECT s.user_id, s.study_level, s.budget_min_cents, s.budget_max_cents,
+    `SELECT s.user_id, s.programme, s.enrollment_year, s.study_level,
+            s.budget_min_cents, s.budget_max_cents,
             COALESCE(
               array_agg(sc.category_id::text ORDER BY sc.category_id)
                 FILTER (WHERE sc.category_id IS NOT NULL),
               '{}'::text[]
-            ) AS category_ids
+            ) AS category_ids,
+            COALESCE(
+              json_agg(json_build_object('id', c.id, 'name', c.name) ORDER BY c.name)
+                FILTER (WHERE c.id IS NOT NULL),
+              '[]'::json
+            ) AS categories
        FROM student s
        JOIN "user" u ON u.id = s.user_id
        LEFT JOIN student_category sc ON sc.student_id = s.user_id
+       LEFT JOIN category c ON c.id = sc.category_id
       WHERE s.user_id = $1 AND u.is_deleted = false
       GROUP BY s.user_id`,
     [userId],
@@ -59,10 +77,13 @@ export async function getStudentProfile(
   if (!row) return null;
   return {
     userId: row.user_id,
+    programme: row.programme,
+    enrollmentYear: row.enrollment_year,
     studyLevel: row.study_level,
     budgetMinCents: row.budget_min_cents,
     budgetMaxCents: row.budget_max_cents,
     categoryIds: row.category_ids,
+    categories: row.categories,
   };
 }
 
