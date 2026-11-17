@@ -3,7 +3,8 @@
 Platform connecting students with tutors, mentors and industry professionals.
 
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
-verify and complete user stories.
+verify and complete user stories, and the [Design Report](docs/design.md) for the domain
+model, architecture, and design decisions.
 
 ## Prerequisites
 
