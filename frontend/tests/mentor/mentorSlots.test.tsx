@@ -65,10 +65,16 @@ const mentor: Mentor = {
   about: '',
   experience: [],
   services: [
-    { id: 'service-1', title: 'Mock interview', description: 'd', duration: '60 min', price: 30 },
+    {
+      id: 'service-1',
+      title: 'Mock interview',
+      description: 'd',
+      duration: '60 min',
+      price: 30,
+      availability: [],
+    },
   ],
   posts: [],
-  availability: [],
   reviews: [],
 };
 const freeSlot: MentorSlot = {

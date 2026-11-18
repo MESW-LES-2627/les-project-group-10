@@ -31,10 +31,10 @@ function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
         description: 'Practice interview sessions',
         duration: '60',
         price: 30,
+        availability: [],
       },
     ],
     posts: [],
-    availability: [],
     reviews: [],
     ...overrides,
   };

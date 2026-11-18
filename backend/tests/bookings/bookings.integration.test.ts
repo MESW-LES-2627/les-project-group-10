@@ -45,8 +45,10 @@ async function selection() {
     [mentor, 'Review', 'Test session'],
   );
   const slot = await pool.query(
-    `INSERT INTO mentor_availability_slot (mentor_id,starts_at) VALUES ($1,date_trunc('hour', now()) + interval '2 days') RETURNING to_char(starts_at AT TIME ZONE 'Europe/Lisbon','YYYY-MM-DD') AS date, to_char(starts_at AT TIME ZONE 'Europe/Lisbon','HH24:MI') AS time`,
-    [mentor],
+    `INSERT INTO mentor_availability_slot (mentor_id,service_id,starts_at,ends_at)
+     VALUES ($1,$2,date_trunc('hour', now()) + interval '2 days', date_trunc('hour', now()) + interval '2 days 1 hour')
+     RETURNING to_char(starts_at AT TIME ZONE 'Europe/Lisbon','YYYY-MM-DD') AS date, to_char(starts_at AT TIME ZONE 'Europe/Lisbon','HH24:MI') AS time`,
+    [mentor, service.rows[0].id],
   );
   return {
     serviceId: service.rows[0].id as string,
