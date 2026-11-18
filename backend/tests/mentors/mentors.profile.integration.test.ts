@@ -97,7 +97,9 @@ beforeAll(async () => {
     [ids.owner, serviceId],
   );
   const booking = await pool.query(
-    "INSERT INTO booking (student_id,service_id,scheduled_at,availability_slot_id,status) VALUES ($1,$2,$3,$4,'confirmed') RETURNING id",
+    `INSERT INTO booking (student_id,service_id,scheduled_at,availability_slot_id,status,
+                          service_title,service_duration_minutes,service_price_cents)
+     VALUES ($1,$2,$3,$4,'confirmed','Session',60,3000) RETURNING id`,
     [ids.student, serviceId, slot.rows[0].starts_at, slot.rows[0].id],
   );
   bookingId = booking.rows[0].id;
@@ -147,7 +149,9 @@ describe('mentor profile HTTP and persistence', () => {
       skills: [],
     });
     expect(result.subjectOptions).toEqual(expect.arrayContaining(categoryNames));
-    expect(result.subjectOptions).toEqual([...result.subjectOptions].sort());
+    // PostgreSQL's collation determines alphabetical order, which differs across hosts.
+    const options = await pool.query<{ name: string }>('SELECT name FROM category ORDER BY name');
+    expect(result.subjectOptions).toEqual(options.rows.map((row) => row.name));
   });
 
   it('persists normalized changes, replacing subjects and updating anonymous reads', async () => {

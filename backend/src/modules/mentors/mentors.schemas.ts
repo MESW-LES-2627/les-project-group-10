@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const serviceSchema = z.object({
+export const serviceSchema = z.object({
   title: z.string().trim().min(1, 'Service name is required').max(100, 'Service name is too long'),
   description: z
     .string()

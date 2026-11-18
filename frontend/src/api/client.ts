@@ -70,3 +70,7 @@ export function apiPut<T>(url: string, body: unknown): Promise<T> {
 export function apiDelete<T>(url: string): Promise<T> {
   return request<T>('DELETE', url);
 }
+
+export function apiPatch<T>(url: string, body: unknown): Promise<T> {
+  return request<T>('PATCH', url, body);
+}

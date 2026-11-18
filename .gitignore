@@ -6,3 +6,5 @@ dist
 CLAUDE.md
 /.vibe-wise
 /AGENTS.md
+__pycache__/
+.vercel/

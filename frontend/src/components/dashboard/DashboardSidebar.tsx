@@ -9,6 +9,7 @@ import {
   Settings,
   UserRound,
   SlidersHorizontal,
+  Briefcase,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
@@ -73,6 +74,7 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
             ? [
                 { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
                 { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
+                { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
               ]
             : []),
         ].map((item) => {
