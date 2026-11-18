@@ -20,6 +20,8 @@ import FindMentorsPage from '@/pages/mentors/FindMentorsPage';
 import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
 import CheckoutPage from '@/pages/mentors/CheckoutPage';
 import BookingConfirmedPage from '@/pages/mentors/BookingConfirmedPage';
+import StudentProfilePage from '@/pages/dashboard/StudentProfilePage';
+import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
 import MentorSlotsPage from '@/pages/dashboard/MentorSlotsPage';
 import { RequireAuth } from '@/layouts/RequireAuth';
@@ -46,6 +48,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <DashboardFindMentorsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/student',
+    element: (
+      <RequireAuth>
+        <StudentProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/student/edit',
+    element: (
+      <RequireAuth>
+        <EditStudentProfilePage />
       </RequireAuth>
     ),
   },
@@ -106,7 +124,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/student-onboarding',
-    element: <StudentOnboardingProvider />,
+    element: (
+      <RequireAuth>
+        <StudentOnboardingProvider />
+      </RequireAuth>
+    ),
     children: [
       { path: 'interests', element: <StudentInterestsStep /> },
       { path: 'preferences', element: <StudentPreferencesStep /> },

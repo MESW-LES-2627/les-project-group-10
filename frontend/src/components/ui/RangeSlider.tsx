@@ -12,6 +12,8 @@ export interface RangeSliderProps {
   valueMax: number;
   onChange: (next: { min: number; max: number }) => void;
   formatValue?: (value: number) => string;
+  /** Text color class for the selected range shown on the right. Defaults to the blue accent. */
+  valueClassName?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function RangeSlider({
   valueMax,
   onChange,
   formatValue = String,
+  valueClassName = 'text-secondary',
 }: RangeSliderProps) {
   const minPercent = ((valueMin - min) / (max - min)) * 100;
   const maxPercent = ((valueMax - min) / (max - min)) * 100;
@@ -35,7 +38,7 @@ export function RangeSlider({
     <div className="flex w-full flex-col gap-3">
       <div className="flex w-full items-center justify-between">
         <p className="font-sans text-base font-semibold text-ink">{label}</p>
-        <p className="font-sans text-sm font-medium text-secondary">
+        <p className={clsx('font-sans text-sm font-medium', valueClassName)}>
           {formatValue(valueMin)} – {formatValue(valueMax)}
         </p>
       </div>

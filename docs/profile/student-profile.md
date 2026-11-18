@@ -1,0 +1,95 @@
+# Student profile page
+
+Students can open their own read-only profile at `/dashboard/student`, from the **Student profile**
+item in the dashboard sidebar or by clicking their avatar in the top-right corner.
+
+## What it shows
+
+| Field              | Source                                                      |
+| ------------------ | ----------------------------------------------------------- |
+| Name, email        | The authenticated user (`GET /api/me`)                      |
+| Programme          | `student.programme`                                         |
+| Enrollment year    | `student.enrollment_year`                                   |
+| Study level        | `student.study_level`                                       |
+| Budget per session | `student.budget_min_cents` / `budget_max_cents`, shown in € |
+| Interests          | `student_category` joined with `category` (names)           |
+
+Fields the student has not filled in show "Not set yet". **Edit profile** opens the edit page.
+
+## Behavior
+
+- The route requires a session. An account without a student profile (a mentor-only account) is
+  redirected to `/dashboard`, and the sidebar item is hidden. For such accounts the avatar links to
+  the mentor editor at `/dashboard/profile` instead.
+- The backend is the real guard: `GET /api/students/me` answers `401` without a session and `403`
+  when the account has no `student` row. The id always comes from the session cookie.
+
+## Editing
+
+**Edit profile** opens `/dashboard/student/edit` (behind sign-in; accounts without a student profile
+are redirected to `/dashboard`). The form edits programme, enrollment year, study level, budget and
+interests. Name and email belong to the account and are not editable here.
+
+- **Save changes** sends one `PATCH /api/students/me` and returns to the profile page, which shows
+  the saved data. **Cancel** returns without saving and discards unsaved changes.
+- Server errors are shown next to the field they belong to. Other failures show a message above the
+  buttons and keep the student's changes in the form.
+- Programme and enrollment year can be emptied, which clears them. The study level dropdown has no
+  empty choice, so a saved level can be changed but not removed. Removing every interest clears them.
+- The budget is only sent if the slider was moved, so opening the page and saving never stores the
+  slider defaults. Saved budgets are shown rounded to the slider's steps (€5).
+- The enrollment year must be four digits; anything else is rejected in the browser before sending.
+- If the subject areas cannot be loaded, the interests section shows an error with **Try again** and
+  the saved interests are left untouched on save.
+
+## Onboarding
+
+Student onboarding (`/student-onboarding`, behind sign-in) saves to the database:
+
+1. **Interests** loads the subject areas from `GET /api/categories`, so each chip is a real
+   `category` row. If the request fails the step shows an error with **Try again** and the student
+   can still continue.
+2. **Preferences** (budget and study level) ends with **Finish setup**, which sends everything in a
+   single `PATCH /api/students/me` (budget converted from euros to cents). The backend applies it
+   in one transaction.
+
+Nothing is saved before **Finish setup**, so **Skip for now**, going back or closing the tab leaves
+the profile untouched and the profile page shows "Not set yet". If the save fails, the student stays
+on the step, sees the error and can try again; they only reach "all set" after a successful save.
+A study level that was not chosen, or an empty interest list, is left out of the request instead of
+clearing saved values.
+
+## API
+
+`GET /api/categories` is public and returns `{ categories: [{ id, name }] }` sorted by name.
+
+`GET /api/students/me` returns `userId`, `programme`, `enrollmentYear`, `studyLevel`,
+`budgetMinCents`, `budgetMaxCents`, `categoryIds` and `categories` (`[{ id, name }]`, sorted by
+name). `categoryIds` is kept for the `PATCH` below.
+
+`PATCH /api/students/me` takes a partial body: `programme`, `enrollmentYear`, `studyLevel`,
+`budgetMinCents`, `budgetMaxCents`, `categoryIds` (omitted = untouched, `null` = cleared, `categoryIds` replaces the whole set) and
+returns the updated profile. Errors use the shared shape `{ error: { code, message, fields? } }`:
+`400 validation_error` with one message per field, and `403 not_a_student`.
+
+## Tests
+
+Backend:
+
+- `backend/tests/students/students.schemas.test.ts` covers the PATCH body rules (unit).
+- `backend/tests/students/students.profile.integration.test.ts` covers reading a full and an empty
+  profile, saving through `PATCH`, editing and clearing programme and enrollment year, a bad budget,
+  an unknown interest, a mentor-only account (403) and a missing session (401).
+- `backend/tests/categories/categories.integration.test.ts` covers the categories list.
+- The integration tests need a disposable `_test` database; see **Testing** in the README.
+
+Frontend (`cd frontend && npm test`), in `frontend/tests/student/`:
+
+- `StudentProfilePage.test.tsx`: shows every field, "Not set yet", a one-sided budget, a load error,
+  the Edit profile link and the redirect for accounts without a student profile.
+- `EditStudentProfilePage.test.tsx`: pre-fill, one PATCH on save, budget only sent after the slider
+  moves, study level change, clearing with `null`, the four-digit year check, server and generic
+  errors, subject-area and profile load retries, Cancel and the redirect.
+- `studentOnboarding.test.tsx`: chips come from the API, retry on failure, nothing saved until
+  **Finish setup**, the request body (budget in cents, omitted study level and interests) and the
+  error handling.

@@ -1,12 +1,13 @@
 import clsx from 'clsx';
 
-export type TagTone = 'green' | 'blue' | 'orange' | 'yellow';
+export type TagTone = 'green' | 'blue' | 'orange' | 'yellow' | 'dark';
 
 const toneStyles: Record<TagTone, string> = {
   green: 'bg-primary-soft text-primary',
   blue: 'bg-secondary-soft text-secondary',
   orange: 'bg-tertiary-soft text-tertiary-strong',
   yellow: 'bg-accent-soft text-accent-strong',
+  dark: 'bg-primary text-ink-inverse',
 };
 
 export interface TagProps {

@@ -7,7 +7,8 @@ See the [documentation index](docs/README.md) for feature guides and project not
 See [Deployment](docs/deployment.md) for the Vercel/Neon setup and the `develop` staging → `main` production release flow.
 
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
-verify and complete user stories.
+verify and complete user stories, and the [Design Report](docs/design.md) for the domain
+model, architecture, and design decisions.
 
 ## Prerequisites
 
@@ -175,10 +176,27 @@ unit test and the `BookingPanel` component test.
 The default backend test suite covers pure functions such as password hashing, session tokens,
 and Zod schemas. It uses no database or network, and makes no Stripe calls.
 
-`npm test` runs those unit tests. Database integration tests run separately with
-`TEST_DATABASE_URL=postgres://.../feup_connect_test npm run test:integration` from `backend/`.
-Use a disposable database whose name ends in `_test`. These tests cover profiles, booking
-reservations, concurrent checkout and deployment readiness. Stripe is mocked. CI runs both suites.
+`npm test` runs those unit tests. Database integration tests run separately and need a disposable
+database, because they run migrations and insert and delete real rows. The config
+(`backend/vitest.integration.config.ts`) refuses to start unless `TEST_DATABASE_URL` is set and the
+database name ends in `_test`, so they can never touch your development data. Create it once, then
+run the tests from the repository root (replace the credentials if yours differ from
+`.env.example`):
+
+```bash
+docker compose up -d db
+docker compose exec db sh -c 'createdb -U "$POSTGRES_USER" feup_connect_test'
+(cd backend && TEST_DATABASE_URL=postgres://feup:feup@localhost:5432/feup_connect_test npm run test:integration)
+```
+
+The tests apply the migrations to that database themselves (no `db:migrate` or `db:seed` needed) and
+clean up their own rows. Without `TEST_DATABASE_URL` you get "TEST_DATABASE_URL must point to a
+disposable database with a name ending in \_test", which is the guard working, not a bug. Drop the
+database when you no longer need it with
+`docker compose exec db sh -c 'dropdb -U "$POSTGRES_USER" feup_connect_test'`.
+
+The integration tests cover profiles, booking reservations, concurrent checkout, deployment
+readiness, student profiles and the categories list. Stripe is mocked. CI runs both suites.
 
 Frontend tests are a mix of:
 
@@ -215,16 +233,17 @@ Node versions below that with an `ERR_REQUIRE_ESM` error from one of jsdom's CSS
 
 ## Useful commands
 
-| Where    | Command                                   | What it does                   |
-| -------- | ----------------------------------------- | ------------------------------ |
-| root     | `npm run format` / `npm run format:check` | Format / check formatting      |
-| backend  | `npm run lint` / `npm run typecheck`      | ESLint / TypeScript check      |
-| backend  | `npm test`                                | Run Vitest unit tests          |
-| backend  | `npm run db:migrate` / `npm run db:seed`  | Apply new migrations / seed    |
-| frontend | `npm run lint` / `npm run build`          | ESLint / type check and build  |
-| frontend | `npm test`                                | Run Vitest unit tests          |
-| root     | `docker compose down`                     | Stop the database (keeps data) |
-| root     | `docker compose down -v`                  | Stop and wipe the database     |
+| Where    | Command                                        | What it does                                 |
+| -------- | ---------------------------------------------- | -------------------------------------------- |
+| root     | `npm run format` / `npm run format:check`      | Format / check formatting                    |
+| backend  | `npm run lint` / `npm run typecheck`           | ESLint / TypeScript check                    |
+| backend  | `npm test`                                     | Run Vitest unit tests                        |
+| backend  | `TEST_DATABASE_URL=… npm run test:integration` | Run database integration tests (see Testing) |
+| backend  | `npm run db:migrate` / `npm run db:seed`       | Apply new migrations / seed                  |
+| frontend | `npm run lint` / `npm run build`               | ESLint / type check and build                |
+| frontend | `npm test`                                     | Run Vitest unit tests                        |
+| root     | `docker compose down`                          | Stop the database (keeps data)               |
+| root     | `docker compose down -v`                       | Stop and wipe the database                   |
 
 ## Troubleshooting
 
