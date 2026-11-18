@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Check, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import { Avatar, Button, buttonVariants } from '@/components/ui';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { getBooking } from '@/api/bookings';
 import type { BookingRecord } from '@/api/bookings';
+import { ApiError } from '@/api/client';
 import {
   buildCalendarInvite,
   downloadTextFile,
   formatEuro,
   formatTicketDate,
+  lisbonBookingTime,
   sessionRange,
 } from '@/lib/booking';
 
@@ -17,24 +19,40 @@ import {
 export default function BookingConfirmedPage() {
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
-  const [loaded, setLoaded] = useState<{
-    bookingId: string | null;
-    booking: BookingRecord | null;
-  }>({ bookingId: null, booking: null });
+  const search = bookingId ? new URLSearchParams({ bookingId }).toString() : '';
+
+  // Keep only the booking reference before fetching status after a Stripe redirect.
+  if (searchParams.toString() !== search) return <Navigate replace to={{ search }} />;
+
+  return <BookingConfirmation key={bookingId} bookingId={bookingId} />;
+}
+
+function BookingConfirmation({ bookingId }: { bookingId: string | null }) {
+  const [booking, setBooking] = useState<BookingRecord | null>(null);
+  const [verificationFailed, setVerificationFailed] = useState(false);
+  const [unavailable, setUnavailable] = useState(!bookingId);
 
   useEffect(() => {
-    let cancelled = false;
     if (!bookingId) return;
+    let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const refresh = () =>
       getBooking(bookingId)
         .then(({ booking: record }) => {
           if (cancelled) return;
-          setLoaded({ bookingId, booking: record });
+          setVerificationFailed(false);
+          setBooking(record);
           if (record.payment_status === 'pending') timer = setTimeout(refresh, 1500);
         })
-        .catch(() => {
-          if (!cancelled) setLoaded({ bookingId, booking: null });
+        .catch((cause: unknown) => {
+          if (cancelled) return;
+          if (cause instanceof ApiError && cause.status < 500) {
+            setUnavailable(true);
+            setBooking(null);
+            return;
+          }
+          setVerificationFailed(true);
+          timer = setTimeout(refresh, 5000);
         });
     void refresh();
     return () => {
@@ -43,47 +61,56 @@ export default function BookingConfirmedPage() {
     };
   }, [bookingId]);
 
-  const ready = !bookingId || loaded.bookingId === bookingId;
-  const booking = loaded.bookingId === bookingId ? loaded.booking : null;
-  if (!ready) return <DashboardLayout title="Booking confirmed">{null}</DashboardLayout>;
-  if (booking?.payment_status === 'pending') {
+  if ((!booking && !unavailable) || booking?.payment_status === 'pending') {
     return (
-      <DashboardLayout title="Booking confirmed">
-        <p className="mx-auto max-w-lg px-4 py-16 text-center font-sans text-ink-soft lg:px-8">
-          Verifying your payment with Stripe…
-        </p>
+      <DashboardLayout title="Payment status">
+        <div className="mx-auto flex max-w-lg flex-col gap-3 px-4 py-16 lg:px-8">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+            Checking your booking
+          </h1>
+          <p role="status" className="font-sans text-ink-soft">
+            {verificationFailed
+              ? 'We’re still waiting to verify your payment. We’ll check again in a moment.'
+              : 'Verifying your payment with Stripe…'}
+          </p>
+          {booking && (
+            <Link to={retryPath(booking)} className="font-sans text-sm font-medium text-secondary">
+              Return to checkout
+            </Link>
+          )}
+        </div>
       </DashboardLayout>
     );
   }
   if (!booking || booking.status !== 'confirmed' || booking.payment_status !== 'succeeded') {
+    const expired = booking?.payment_status === 'expired';
+    const failed = booking?.payment_status === 'failed';
     return (
-      <DashboardLayout title="Booking confirmed">
+      <DashboardLayout title="Payment status">
         <div className="mx-auto flex max-w-lg flex-col gap-3 px-4 py-16 lg:px-8">
-          <p className="font-display text-3xl font-bold tracking-tight text-ink">
-            No confirmed booking to show
-          </p>
-          <Link to="/dashboard/mentors" className="font-sans text-sm font-medium text-secondary">
-            Find a mentor
-          </Link>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+            {expired
+              ? 'Reservation expired'
+              : failed
+                ? 'Payment failed'
+                : 'No confirmed booking to show'}
+          </h1>
+          {booking && (expired || failed) ? (
+            <Link to={retryPath(booking)} className="font-sans text-sm font-medium text-secondary">
+              Return to checkout to retry
+            </Link>
+          ) : (
+            <Link to="/dashboard/mentors" className="font-sans text-sm font-medium text-secondary">
+              Find a mentor
+            </Link>
+          )}
         </div>
       </DashboardLayout>
     );
   }
 
   const confirmedBooking = booking;
-  const startsAt = new Date(confirmedBooking.scheduled_at);
-  const date = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Lisbon',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(startsAt);
-  const time = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Lisbon',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(startsAt);
+  const { date, time } = lisbonBookingTime(confirmedBooking.scheduled_at);
   const when = formatTicketDate(date);
   const duration = `${confirmedBooking.duration_minutes} min`;
   const range = sessionRange(time, duration);
@@ -203,6 +230,11 @@ export default function BookingConfirmedPage() {
       </div>
     </DashboardLayout>
   );
+}
+
+function retryPath(booking: BookingRecord) {
+  const params = new URLSearchParams({ bookingId: booking.id });
+  return `/mentors/${booking.mentor_id}/checkout?${params}`;
 }
 
 function TicketField({ label, value }: { label: string; value: string }) {

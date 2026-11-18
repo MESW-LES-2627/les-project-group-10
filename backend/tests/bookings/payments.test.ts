@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/modules/bookings/bookings.queries.js', () => ({
+  claimPaymentIntentCreation: vi.fn(),
   findPendingStripePayments: vi.fn(),
   markStripePaymentResult: vi.fn(),
   expireUnattachedPayment: vi.fn(),
@@ -10,6 +11,7 @@ vi.mock('../../src/modules/bookings/stripe.js', () => ({
 }));
 
 import {
+  claimPaymentIntentCreation,
   findPendingStripePayments,
   markStripePaymentResult,
   expireUnattachedPayment,
@@ -19,12 +21,16 @@ import { synchronizeStripePayments } from '../../src/modules/bookings/payments.j
 
 const pending = {
   id: 'payment',
+  booking_id: 'booking',
+  stripe_creation_started_at: null,
+  currency: 'eur',
   stripe_payment_intent_id: 'pi_test',
   amount_cents: 3150,
   reservation_expires_at: new Date('2026-01-01T12:10:00Z'),
 };
 const scope = { studentId: 'student', bookingId: 'booking' };
 const success = {
+  id: 'pi_test',
   status: 'succeeded',
   livemode: false,
   amount_received: 3150,
@@ -35,50 +41,50 @@ const success = {
 describe('request-time Stripe verification', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(claimPaymentIntentCreation).mockResolvedValue(undefined as never);
     vi.mocked(findPendingStripePayments).mockResolvedValue([pending]);
   });
 
-  it('uses the Stripe charge time when a sleeping function observes success later', async () => {
+  it('confirms when Stripe verifies success after the deadline', async () => {
     vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(success as never);
     await synchronizeStripePayments(scope);
     expect(findPendingStripePayments).toHaveBeenCalledWith(scope);
-    expect(markStripePaymentResult).toHaveBeenCalledWith(
-      'pi_test',
-      true,
-      new Date('2026-01-01T12:05:00Z'),
-    );
+    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', 'succeeded');
     expect(stripe.paymentIntents.cancel).not.toHaveBeenCalled();
   });
 
-  it('cancels an expired unpaid intent before recording failure', async () => {
+  it('cancels an expired unpaid intent before recording expiry', async () => {
     vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
       status: 'requires_payment_method',
       livemode: false,
+      id: 'pi_test',
     } as never);
     vi.mocked(stripe.paymentIntents.cancel).mockResolvedValue({
       status: 'canceled',
       livemode: false,
+      id: 'pi_test',
     } as never);
     await synchronizeStripePayments(scope);
     expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_test', {
       expand: ['latest_charge'],
     });
-    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', false);
+    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', 'expired');
   });
 
   it('verifies success when payment wins a cancellation race', async () => {
     vi.mocked(stripe.paymentIntents.retrieve)
-      .mockResolvedValueOnce({ status: 'processing', livemode: false } as never)
+      .mockResolvedValueOnce({ id: 'pi_test', status: 'processing', livemode: false } as never)
       .mockResolvedValueOnce(success as never);
     vi.mocked(stripe.paymentIntents.cancel).mockRejectedValue(new Error('Already paid'));
     await synchronizeStripePayments(scope);
-    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', true, expect.any(Date));
+    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', 'succeeded');
   });
 
   it('keeps the database pending when Stripe cannot verify or cancel', async () => {
     vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
       status: 'processing',
       livemode: false,
+      id: 'pi_test',
     } as never);
     vi.mocked(stripe.paymentIntents.cancel).mockRejectedValue(new Error('Network unavailable'));
     await expect(synchronizeStripePayments(scope)).rejects.toMatchObject({
@@ -120,10 +126,49 @@ describe('request-time Stripe verification', () => {
     vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
       status: 'processing',
       livemode: false,
+      id: 'pi_test',
     } as never);
     await synchronizeStripePayments(scope);
     expect(markStripePaymentResult).not.toHaveBeenCalled();
     expect(stripe.paymentIntents.cancel).not.toHaveBeenCalled();
+  });
+
+  it('leaves a fresh unfilled payment pending', async () => {
+    vi.mocked(findPendingStripePayments).mockResolvedValue([
+      { ...pending, reservation_expires_at: new Date(Date.now() + 60_000) },
+    ]);
+    vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
+      id: 'pi_test',
+      status: 'requires_payment_method',
+      livemode: false,
+      client_secret: 'secret',
+    } as never);
+    await expect(synchronizeStripePayments(scope)).resolves.toEqual([
+      { id: 'payment', clientSecret: 'secret' },
+    ]);
+    expect(markStripePaymentResult).not.toHaveBeenCalled();
+  });
+
+  it('cancels a verified decline before saving a failed attempt', async () => {
+    vi.mocked(findPendingStripePayments).mockResolvedValue([
+      { ...pending, reservation_expires_at: new Date(Date.now() + 60_000) },
+    ]);
+    vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
+      id: 'pi_test',
+      status: 'requires_payment_method',
+      livemode: false,
+      last_payment_error: { code: 'card_declined' },
+    } as never);
+    vi.mocked(stripe.paymentIntents.cancel).mockResolvedValue({
+      id: 'pi_test',
+      status: 'canceled',
+      livemode: false,
+    } as never);
+    await expect(synchronizeStripePayments(scope)).resolves.toEqual([
+      { id: 'payment', clientSecret: null },
+    ]);
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledOnce();
+    expect(markStripePaymentResult).toHaveBeenCalledWith('pi_test', 'failed');
   });
 
   it('expires an interrupted attempt without calling Stripe', async () => {
@@ -143,10 +188,10 @@ describe('request-time Stripe verification', () => {
     ]);
     vi.mocked(stripe.paymentIntents.retrieve)
       .mockRejectedValueOnce(new Error('Unavailable'))
-      .mockResolvedValueOnce(success as never);
+      .mockResolvedValueOnce({ ...success, id: 'pi_other' } as never);
     try {
-      await expect(synchronizeStripePayments({ studentId: 'student' })).resolves.toBeUndefined();
-      expect(markStripePaymentResult).toHaveBeenCalledWith('pi_other', true, expect.any(Date));
+      await expect(synchronizeStripePayments({ studentId: 'student' })).resolves.toHaveLength(1);
+      expect(markStripePaymentResult).toHaveBeenCalledWith('pi_other', 'succeeded');
       expect(warning).toHaveBeenCalledOnce();
     } finally {
       warning.mockRestore();

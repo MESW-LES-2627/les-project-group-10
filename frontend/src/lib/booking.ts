@@ -33,6 +33,28 @@ export function formatEuro(amount: number) {
   return `€${amount.toFixed(2)}`;
 }
 
+const lisbonDateTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Lisbon',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+export function lisbonBookingTime(timestamp: string) {
+  const { year, month, day, hour, minute } = Object.fromEntries(
+    lisbonDateTime.formatToParts(new Date(timestamp)).map(({ type, value }) => [type, value]),
+  );
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
+}
+
+export function bookingConfirmationPath(mentorId: string, bookingId: string) {
+  const params = new URLSearchParams({ bookingId });
+  return `/mentors/${mentorId}/booked?${params}`;
+}
+
 function atNoon(isoDate: string) {
   return new Date(`${isoDate}T12:00:00`);
 }
