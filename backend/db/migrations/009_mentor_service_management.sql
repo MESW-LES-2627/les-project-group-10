@@ -19,3 +19,23 @@ ALTER TABLE booking
   ALTER COLUMN service_title SET NOT NULL,
   ALTER COLUMN service_duration_minutes SET NOT NULL,
   ALTER COLUMN service_price_cents SET NOT NULL;
+
+-- Older app versions omit the snapshot during deployment and rollback.
+CREATE FUNCTION fill_booking_service_snapshot() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  SELECT COALESCE(NEW.service_title, s.title),
+         COALESCE(NEW.service_duration_minutes, s.duration_minutes),
+         COALESCE(NEW.service_price_cents, s.price_cents)
+    INTO NEW.service_title, NEW.service_duration_minutes, NEW.service_price_cents
+    FROM service s
+   WHERE s.id = NEW.service_id;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER booking_fill_service_snapshot
+BEFORE INSERT ON booking
+FOR EACH ROW
+WHEN (NEW.service_title IS NULL OR NEW.service_duration_minutes IS NULL OR NEW.service_price_cents IS NULL)
+EXECUTE FUNCTION fill_booking_service_snapshot();
