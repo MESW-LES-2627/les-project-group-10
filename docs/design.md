@@ -38,8 +38,6 @@ The diagram is on [diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightb
 
 ### 4.1. Scenario 1: Hardcoded, duplicated commission fee (Iteration 1)
 
-_Written 2026-11-09._
-
 #### Change scenario and design context
 
 Right now, the application charges a fixed commission of 1.50 Euros on every booking. This is implemented independently in two places: the backend calculates the final charge sent to Stripe by adding the fixed amount of 1.50 Euros to the session price, while the frontend holds its own fixed amount value of 1.50 Euros that it renders during the checkout preview.
