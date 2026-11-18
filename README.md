@@ -7,7 +7,8 @@ See the [documentation index](docs/README.md) for feature guides and project not
 See [Deployment](docs/deployment.md) for the Vercel/Neon setup and the `develop` staging → `main` production release flow.
 
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
-verify and complete user stories.
+verify and complete user stories, and the [Design Report](docs/design.md) for the domain
+model, architecture, and design decisions.
 
 ## Prerequisites
 
