@@ -198,11 +198,13 @@ ON CONFLICT DO NOTHING;
 -- day_offset is relative to today (negative = past), hour is the start hour
 -- ---------------------------------------------------------------------------
 
-INSERT INTO booking (id, student_id, service_id, scheduled_at, status, created_at)
+INSERT INTO booking (id, student_id, service_id, scheduled_at, status, created_at,
+                     service_title, service_duration_minutes, service_price_cents)
 SELECT v.id::uuid, v.student_id::uuid, v.service_id::uuid,
        date_trunc('day', now()) + make_interval(days => v.day_offset, hours => v.hour),
        v.status,
-       now() - make_interval(days => v.created_days_ago)
+       now() - make_interval(days => v.created_days_ago),
+       s.title, s.duration_minutes, s.price_cents
 FROM (VALUES
   -- id, student, service, day_offset, hour, status, created_days_ago
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000001', -10, 15, 'completed',       14),  -- Beatriz -> Ana, OOD tutoring
@@ -214,6 +216,7 @@ FROM (VALUES
   ('30000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003',  -2, 18, 'completed',        5),  -- Ana (as student) -> Rui, code review
   ('30000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000008',   1, 13, 'confirmed',        1)   -- Diogo (as student) -> Inês, statistics
 ) AS v(id, student_id, service_id, day_offset, hour, status, created_days_ago)
+JOIN service s ON s.id = v.service_id::uuid
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------

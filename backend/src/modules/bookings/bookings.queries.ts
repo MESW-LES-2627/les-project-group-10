@@ -66,8 +66,14 @@ export async function createPendingBooking(
   const student = await client.query('SELECT 1 FROM student WHERE user_id = $1', [userId]);
   if (!student.rowCount)
     throw new HttpError(403, 'not_a_student', 'Only student accounts can book a session');
-  const services = await client.query<{ id: string; mentor_id: string; price_cents: number }>(
-    `SELECT s.id, s.mentor_id, s.price_cents FROM service s
+  const services = await client.query<{
+    id: string;
+    mentor_id: string;
+    title: string;
+    duration_minutes: number;
+    price_cents: number;
+  }>(
+    `SELECT s.id, s.mentor_id, s.title, s.duration_minutes, s.price_cents FROM service s
        JOIN mentor m ON m.user_id = s.mentor_id JOIN "user" u ON u.id = m.user_id
       WHERE s.id = $1 AND s.is_active AND m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted`,
     [input.serviceId],
@@ -94,9 +100,18 @@ export async function createPendingBooking(
     throw new HttpError(409, 'slot_unavailable', 'That time is no longer available');
   const amountCents = service.price_cents + PLATFORM_FEE_CENTS;
   const booking = await client.query<{ id: string }>(
-    `INSERT INTO booking (student_id, service_id, scheduled_at, status, availability_slot_id)
-     VALUES ($1, $2, $3, 'pending_payment', $4) RETURNING id`,
-    [userId, service.id, slot.starts_at, slot.id],
+    `INSERT INTO booking (student_id, service_id, scheduled_at, status, availability_slot_id,
+                           service_title, service_duration_minutes, service_price_cents)
+     VALUES ($1, $2, $3, 'pending_payment', $4, $5, $6, $7) RETURNING id`,
+    [
+      userId,
+      service.id,
+      slot.starts_at,
+      slot.id,
+      service.title,
+      service.duration_minutes,
+      service.price_cents,
+    ],
   );
   const payment = await client.query<{ id: string }>(
     `INSERT INTO payment (booking_id, amount_cents, currency, status, idempotency_key, reservation_expires_at)
@@ -214,9 +229,48 @@ export async function markStripePaymentResult(
   });
 }
 
+async function withPaymentLock<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function expirePendingPayments() {
+  return withPaymentLock(async (client) => {
+    const expired = await client.query<{
+      id: string;
+      booking_id: string;
+      stripe_payment_intent_id: string | null;
+    }>(
+      `SELECT p.id, p.booking_id, p.stripe_payment_intent_id FROM payment p
+        JOIN booking b ON b.id = p.booking_id
+       WHERE p.status = 'pending' AND p.reservation_expires_at <= now() AND b.status = 'pending_payment'
+       FOR UPDATE OF p, b SKIP LOCKED`,
+    );
+    for (const row of expired.rows) {
+      await client.query("UPDATE payment SET status = 'failed' WHERE id = $1", [row.id]);
+      await client.query("UPDATE booking SET status = 'cancelled' WHERE id = $1", [row.booking_id]);
+    }
+    return expired.rows.flatMap((row) =>
+      row.stripe_payment_intent_id ? [row.stripe_payment_intent_id] : [],
+    );
+  });
+}
+
+// service_title/duration_minutes come from the booking's own snapshot, not a live join, so a
+// later edit to the service (title, duration or price) never changes a past booking's record.
 const BOOKING_DETAILS_SQL = `
   SELECT b.id, b.status, b.scheduled_at, p.status AS payment_status, p.amount_cents,
-         s.id AS service_id, s.title AS service_title, s.duration_minutes,
+         b.service_id, b.service_title, b.service_duration_minutes AS duration_minutes,
          m.user_id AS mentor_id, u.username AS mentor_name, m.headline AS mentor_headline
     FROM booking b JOIN LATERAL (
       SELECT status, amount_cents FROM payment WHERE booking_id = b.id ORDER BY created_at DESC LIMIT 1
