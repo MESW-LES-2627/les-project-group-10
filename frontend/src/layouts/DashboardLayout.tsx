@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Bell, Menu, X } from 'lucide-react';
 import { Avatar } from '@/components/ui';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
@@ -18,6 +19,8 @@ export interface DashboardLayoutProps {
 export function DashboardLayout({ title, children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+  // Students see their student profile; a mentor-only account goes to the mentor editor.
+  const profilePath = user?.isStudent ? '/dashboard/student' : '/dashboard/profile';
 
   return (
     <div className="flex min-h-screen w-full bg-canvas">
@@ -50,7 +53,13 @@ export function DashboardLayout({ title, children }: DashboardLayoutProps) {
             >
               <Bell className="size-5" />
             </button>
-            <Avatar initials={user ? getInitials(user.username) : ''} tone="tertiary" size="sm" />
+            <Link
+              to={profilePath}
+              aria-label="Your profile"
+              className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <Avatar initials={user ? getInitials(user.username) : ''} tone="tertiary" size="sm" />
+            </Link>
           </div>
         </header>
         <div className="flex-1">{children}</div>

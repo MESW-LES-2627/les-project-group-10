@@ -1,24 +1,12 @@
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button, buttonVariants, Chip, InfoNote } from '@/components/ui';
+import { getCategories } from '@/api/categories';
+import type { Category } from '@/api/categories';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { useStudentOnboarding } from './useStudentOnboarding';
-
-const INTEREST_OPTIONS = [
-  'Software Engineering',
-  'Data Science & AI',
-  'Career & Internships',
-  'Interview Prep',
-  'Electrical Eng.',
-  'Mechanical Eng.',
-  'Civil Eng.',
-  'Mathematics',
-  'Physics',
-  'Thesis & Research',
-  'Study Skills',
-  'Entrepreneurship',
-];
 
 /**
  * Student onboarding step 1 of 2: subject areas the student wants
@@ -28,11 +16,39 @@ export default function StudentInterestsStep() {
   const navigate = useNavigate();
   const { data, updateData } = useStudentOnboarding();
 
-  function toggleInterest(interest: string) {
+  const [options, setOptions] = useState<Category[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [attempt, setAttempt] = useState(0);
+
+  // Subject areas come from the database so the chips carry real category ids.
+  useEffect(() => {
+    let cancelled = false;
+    getCategories()
+      .then((categories) => {
+        if (cancelled) return;
+        setOptions(categories);
+        setStatus('ready');
+      })
+      .catch((error: unknown) => {
+        console.error('Could not load the subject areas:', error);
+        if (!cancelled) setStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+
+  function retry() {
+    setStatus('loading');
+    setAttempt((current) => current + 1);
+  }
+
+  function toggleInterest(category: Category) {
+    const selected = data.interests.some((item) => item.id === category.id);
     updateData({
-      interests: data.interests.includes(interest)
-        ? data.interests.filter((item) => item !== interest)
-        : [...data.interests, interest],
+      interests: selected
+        ? data.interests.filter((item) => item.id !== category.id)
+        : [...data.interests, category],
     });
   }
 
@@ -75,16 +91,34 @@ export default function StudentInterestsStep() {
           <p className="font-sans text-xs font-medium text-ink-muted">Pick as many as apply</p>
         </div>
 
-        <div className="flex w-full flex-wrap gap-2.5">
-          {INTEREST_OPTIONS.map((interest) => (
-            <Chip
-              key={interest}
-              label={interest}
-              selected={data.interests.includes(interest)}
-              onClick={() => toggleInterest(interest)}
-            />
-          ))}
-        </div>
+        {status === 'loading' && (
+          <p className="font-sans text-sm text-ink-muted">Loading subject areas…</p>
+        )}
+
+        {status === 'error' && (
+          <div role="alert" className="flex flex-col items-start gap-3">
+            <p className="font-sans text-sm text-danger">
+              Could not load the subject areas. You can continue without them and add interests
+              later from your profile.
+            </p>
+            <Button type="button" variant="outlined" size="md" onClick={retry}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {status === 'ready' && (
+          <div className="flex w-full flex-wrap gap-2.5">
+            {options.map((category) => (
+              <Chip
+                key={category.id}
+                label={category.name}
+                selected={data.interests.some((item) => item.id === category.id)}
+                onClick={() => toggleInterest(category)}
+              />
+            ))}
+          </div>
+        )}
 
         <InfoNote icon={<Sparkles className="size-5" />}>
           Based on FEUP&rsquo;s main departments — select whatever feels relevant, even outside your
