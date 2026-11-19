@@ -27,11 +27,24 @@ function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
     about: 'About',
     experience: [],
     services: [
-      { id: 's1', title: 'Mock Interview', description: 'Practice', duration: '60 min', price: 30 },
-      { id: 's2', title: 'CV Review', description: 'Feedback', duration: '30 min', price: 15 },
+      {
+        id: 's1',
+        title: 'Mock Interview',
+        description: 'Practice',
+        duration: '60 min',
+        price: 30,
+        availability: [],
+      },
+      {
+        id: 's2',
+        title: 'CV Review',
+        description: 'Feedback',
+        duration: '30 min',
+        price: 15,
+        availability: [],
+      },
     ],
     posts: [],
-    availability: [],
     reviews: [],
     ...overrides,
   };

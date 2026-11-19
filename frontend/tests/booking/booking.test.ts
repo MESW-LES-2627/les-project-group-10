@@ -93,6 +93,7 @@ function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
     description: 'Practice interview',
     duration: '60 minutes',
     price: 30,
+    availability: [{ date: '2024-01-08', times: ['09:00', '10:00'] }],
   };
 
   return {
@@ -118,7 +119,6 @@ function buildMentor(overrides: Partial<Mentor> = {}): Mentor {
     experience: [],
     services: [service],
     posts: [],
-    availability: [{ date: '2024-01-08', times: ['09:00', '10:00'] }],
     reviews: [],
     ...overrides,
   };

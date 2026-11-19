@@ -97,9 +97,10 @@ export async function createPendingBooking(
     throw new HttpError(400, 'self_booking', 'You cannot book your own session');
   const slotResult = await client.query<{ id: string; starts_at: Date }>(
     `SELECT id, starts_at FROM mentor_availability_slot
-      WHERE mentor_id = $1 AND starts_at = (($2::date + $3::time) AT TIME ZONE 'Europe/Lisbon')
+      WHERE mentor_id = $1 AND service_id = $2
+        AND starts_at = (($3::date + $4::time) AT TIME ZONE 'Europe/Lisbon')
         AND starts_at > clock_timestamp() FOR UPDATE`,
-    [service.mentor_id, input.date, input.time],
+    [service.mentor_id, service.id, input.date, input.time],
   );
   const slot = slotResult.rows[0];
   await requireFreeSlot(client, slot?.id);
