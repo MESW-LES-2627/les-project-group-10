@@ -68,6 +68,7 @@ beforeEach(() => {
       email: 'student@example.com',
       isStudent: true,
       isMentor: false,
+      isAdmin: false,
       onboardingFinished: false,
     },
     loading: false,
