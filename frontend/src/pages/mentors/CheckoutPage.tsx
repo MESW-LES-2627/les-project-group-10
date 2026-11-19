@@ -1,336 +1,273 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import type { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Calendar,
-  Clock,
-  GraduationCap,
-  Lock,
-  ShieldCheck,
-  Sparkles,
-  Video,
-} from 'lucide-react';
-import { Avatar, Button, InfoNote } from '@/components/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Button, buttonVariants } from '@/components/ui';
+import { CheckoutNotice, CheckoutPayment } from '@/components/mentors/CheckoutPayment';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { getMentorById } from '@/api/mentors';
-import type { Mentor, MentorService } from '@/api/mentors';
-import { createStripeCheckout, getStripeConfig } from '@/api/bookings';
-import {
-  PLATFORM_FEE,
-  formatEuro,
-  formatLongDate,
-  formatShortDate,
-  readSelection,
-  sessionRange,
-  sessionTotal,
-} from '@/lib/booking';
-import { useAuth } from '@/auth/useAuth';
+import { createStripeCheckout, getStripeCheckout, retryStripeCheckout } from '@/api/bookings';
+import type { StripeCheckout, StripeCheckoutInput } from '@/api/bookings';
+import { ApiError } from '@/api/client';
+import { bookingConfirmationPath } from '@/lib/booking';
 
 export default function CheckoutPage() {
-  const { mentorId } = useParams();
-  const [searchParams] = useSearchParams();
-  const [mentor, setMentor] = useState<Mentor | null>(null);
-  const [selection, setSelection] = useState<{
-    service: MentorService;
-    date: string;
-    time: string;
-  } | null>(null);
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
-  const [clientSecret, setClientSecret] = useState('');
-  const [bookingId, setBookingId] = useState('');
-  const [error, setError] = useState('');
-  const { user } = useAuth();
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
-
-  useEffect(() => {
-    if (!mentorId) return;
-    let cancelled = false;
-    Promise.all([getMentorById(mentorId), getStripeConfig()])
-      .then(([data, config]) => {
-        if (cancelled) return;
-        setMentor(data);
-        setSelection(data ? readSelection(searchParams.toString(), data) : null);
-        setStripePromise(
-          loadStripe(config.publishableKey, {
-            developerTools: { assistant: { enabled: false } },
-          }),
-        );
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled)
-          setError(cause instanceof Error ? cause.message : 'Checkout could not be loaded.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mentorId, searchParams]);
-
-  useEffect(() => {
-    if (!mentor || !selection || !user) return;
-    let cancelled = false;
-    createStripeCheckout({
-      serviceId: selection.service.id,
-      date: selection.date,
-      time: selection.time,
-      idempotencyKey,
-    })
-      .then((result) => {
-        if (cancelled) return;
-        setBookingId(result.bookingId);
-        setClientSecret(result.clientSecret);
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled)
-          setError(cause instanceof Error ? cause.message : 'Checkout could not be started.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mentor, selection, user, idempotencyKey]);
-
-  if (!mentor || !selection) {
-    return <DashboardLayout title="Checkout">{null}</DashboardLayout>;
-  }
-  const total = sessionTotal(selection.service.price);
-  const query = searchParams.toString();
-  if (error)
-    return (
-      <DashboardLayout title="Checkout">
-        <div
-          className="mx-auto max-w-xl px-4 py-16 text-center font-sans text-danger lg:px-8"
-          role="alert"
-        >
-          {error}
-        </div>
-      </DashboardLayout>
-    );
-  if (!stripePromise || !clientSecret || !bookingId)
-    return <DashboardLayout title="Checkout">{null}</DashboardLayout>;
-
-  const options: StripeElementsOptions = {
-    clientSecret,
-    appearance: { theme: 'stripe', variables: { colorPrimary: '#0f766e', borderRadius: '10px' } },
-  };
+  const { mentorId = '' } = useParams();
+  const [params] = useSearchParams();
+  const bookingId = params.get('bookingId');
+  const serviceId = params.get('service');
+  const date = params.get('date');
+  const time = params.get('time');
 
   return (
     <DashboardLayout title="Checkout">
-      <Elements stripe={stripePromise} options={options}>
-        <CheckoutForm
-          mentor={mentor}
-          selection={selection}
-          query={query}
-          total={total}
-          bookingId={bookingId}
-          userName={user?.username ?? ''}
-          userEmail={user?.email ?? ''}
+      {bookingId ? (
+        <CheckoutAttempt key={bookingId} bookingId={bookingId} />
+      ) : serviceId && date && time ? (
+        <StartCheckout
+          key={params.toString()}
+          mentorId={mentorId}
+          serviceId={serviceId}
+          date={date}
+          time={time}
         />
-      </Elements>
+      ) : (
+        <CheckoutNotice
+          title="Choose a session"
+          message="Select a service and an available time first."
+        >
+          <ChooseAnotherTime mentorId={mentorId} />
+        </CheckoutNotice>
+      )}
     </DashboardLayout>
   );
 }
 
-function CheckoutForm({
-  mentor,
-  selection,
-  query,
-  total,
-  bookingId,
-  userName,
-  userEmail,
-}: {
-  mentor: Mentor;
-  selection: { service: MentorService; date: string; time: string };
-  query: string;
-  total: number;
-  bookingId: string;
-  userName: string;
-  userEmail: string;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
+function StartCheckout({
+  mentorId,
+  serviceId,
+  date,
+  time,
+}: Omit<StripeCheckoutInput, 'idempotencyKey'> & { mentorId: string }) {
+  const [params, setParams] = useSearchParams();
+  const idempotencyKey = params.get('checkoutKey');
+  const [reload, setReload] = useState(0);
+  const [error, setError] = useState<unknown>(null);
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const returnUrl = `${window.location.origin}/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`;
 
-  async function handlePay(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!stripe || !elements || submitting) return;
-    setSubmitting(true);
-    setError('');
-    const result = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: returnUrl,
-        payment_method_data: { billing_details: { name: userName, email: userEmail } },
-      },
-      redirect: 'if_required',
-    });
-    if (result.error) {
-      setError(result.error.message ?? 'Payment could not be completed. Please try again.');
-      setSubmitting(false);
+  useEffect(() => {
+    if (!idempotencyKey) {
+      // Put the key in the URL before sending the request so reloads can replay it.
+      const next = new URLSearchParams({
+        service: serviceId,
+        date,
+        time,
+        checkoutKey: crypto.randomUUID(),
+      });
+      setParams(next, { replace: true });
       return;
     }
-    navigate(`/mentors/${mentor.id}/booked?bookingId=${encodeURIComponent(bookingId)}`);
+
+    let active = true;
+    void createStripeCheckout({ serviceId, date, time, idempotencyKey })
+      .then(({ booking }) => {
+        if (!active) return;
+        const search = new URLSearchParams({ bookingId: booking.id });
+        void navigate({ search: search.toString() }, { replace: true });
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [idempotencyKey, serviceId, date, time, reload, setParams, navigate]);
+
+  if (error) {
+    const unavailable = slotOrServiceUnavailable(error);
+    return (
+      <CheckoutNotice
+        title="Checkout could not start"
+        message={unavailable ?? 'Check your connection and try again.'}
+        error
+      >
+        {unavailable ? (
+          <ChooseAnotherTime mentorId={mentorId} />
+        ) : (
+          <Button
+            variant="blue"
+            onClick={() => {
+              setError(null);
+              setReload((count) => count + 1);
+            }}
+          >
+            Try again
+          </Button>
+        )}
+      </CheckoutNotice>
+    );
+  }
+
+  return <CheckoutNotice title="Opening checkout" message="Checking your reservation…" />;
+}
+
+function CheckoutAttempt({ bookingId }: { bookingId: string }) {
+  const [checkout, setCheckout] = useState<StripeCheckout | null>(null);
+  const [readError, setReadError] = useState<unknown>(null);
+  const [retryError, setRetryError] = useState<unknown>(null);
+  const [refresh, setRefresh] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const retryInFlight = useRef(false);
+
+  function checkAgain() {
+    setReadError(null);
+    setRefresh((count) => count + 1);
+  }
+
+  useEffect(() => {
+    if (retrying) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+
+    async function verify() {
+      try {
+        const current = await getStripeCheckout(bookingId);
+        if (!active) return;
+        setCheckout(current);
+        setReadError(null);
+        if (current.booking.payment_status === 'pending') {
+          timer = setTimeout(() => void verify(), current.clientSecret ? 5000 : 1500);
+        }
+      } catch (cause) {
+        if (!active) return;
+        setReadError(cause);
+        if (!(cause instanceof ApiError) || cause.status >= 500) {
+          timer = setTimeout(() => void verify(), 5000);
+        }
+      }
+    }
+
+    void verify();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [bookingId, refresh, retrying]);
+
+  async function retry(attemptId: string) {
+    if (retryInFlight.current) return;
+    retryInFlight.current = true;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      setCheckout(await retryStripeCheckout(bookingId, attemptId));
+    } catch (cause) {
+      setRetryError(cause);
+    } finally {
+      retryInFlight.current = false;
+      setRetrying(false);
+      checkAgain();
+    }
+  }
+
+  if (readError) {
+    const unavailable = readError instanceof ApiError && [401, 403, 404].includes(readError.status);
+    return (
+      <CheckoutNotice
+        title={unavailable ? 'Checkout unavailable' : 'Could not check payment'}
+        message={
+          unavailable
+            ? 'This checkout could not be opened.'
+            : 'Check your connection. Your payment status will update when we can verify it.'
+        }
+        error
+      >
+        {unavailable ? (
+          <Link className="text-secondary" to="/dashboard/mentors">
+            Find a mentor
+          </Link>
+        ) : (
+          <Button variant="blue" onClick={checkAgain}>
+            Check payment status
+          </Button>
+        )}
+      </CheckoutNotice>
+    );
+  }
+
+  if (!checkout)
+    return <CheckoutNotice title="Opening checkout" message="Checking your reservation…" />;
+
+  const { booking, attemptId, clientSecret } = checkout;
+  if (booking.status === 'confirmed' && booking.payment_status === 'succeeded') {
+    return <Navigate replace to={bookingConfirmationPath(booking.mentor_id, booking.id)} />;
+  }
+
+  const expired = booking.payment_status === 'expired';
+  if (expired || booking.payment_status === 'failed') {
+    const unavailable = slotOrServiceUnavailable(retryError);
+    return (
+      <CheckoutNotice
+        title={expired ? 'Reservation expired' : 'Payment failed'}
+        message={
+          expired
+            ? 'Your reservation expired before payment completed.'
+            : 'Stripe could not complete this payment.'
+        }
+      >
+        {retryError instanceof Error && (
+          <p role="alert" className="text-danger">
+            {unavailable ?? 'Could not start the retry. Check your connection and try again.'}
+          </p>
+        )}
+        {unavailable ? (
+          <ChooseAnotherTime mentorId={booking.mentor_id} />
+        ) : (
+          <Button variant="blue" disabled={retrying} onClick={() => void retry(attemptId)}>
+            {retrying ? 'Checking availability…' : 'Retry payment'}
+          </Button>
+        )}
+      </CheckoutNotice>
+    );
+  }
+
+  if (booking.payment_status === 'pending' && booking.status === 'pending_payment') {
+    if (!clientSecret) {
+      return (
+        <CheckoutNotice title="Payment pending" message="Verifying your payment with Stripe…" />
+      );
+    }
+    return (
+      <CheckoutPayment
+        key={attemptId}
+        booking={booking}
+        clientSecret={clientSecret}
+        onCheckStatus={checkAgain}
+      />
+    );
   }
 
   return (
-    <div className="flex w-full flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <ol className="flex flex-wrap items-center gap-3 font-sans text-sm font-medium">
-          <li className="inline-flex items-center gap-2 text-ink">
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary text-ink-inverse">
-              <ShieldCheck className="size-3.5" />
-            </span>
-            Session
-          </li>
-          <li className="text-ink-muted">›</li>
-          <li className="inline-flex items-center gap-2 text-ink">
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary font-sans text-xs text-ink-inverse">
-              2
-            </span>
-            Payment
-          </li>
-          <li className="text-ink-muted">›</li>
-          <li className="inline-flex items-center gap-2 text-ink-muted">
-            <span className="flex size-6 items-center justify-center rounded-full bg-subtle font-sans text-xs text-ink-muted">
-              3
-            </span>
-            Confirmed
-          </li>
-        </ol>
-        <p className="inline-flex items-center gap-2 font-sans text-sm font-medium text-primary">
-          <Lock className="size-4" />
-          Secure checkout
-        </p>
-      </div>
-      <form onSubmit={handlePay} className="flex w-full flex-col gap-8 lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <Link
-            to={`/mentors/${mentor.id}?${query}`}
-            className="inline-flex items-center gap-1.5 font-sans text-sm font-medium text-ink-soft"
-          >
-            <ArrowLeft className="size-4" />
-            Back to {mentor.name.split(' ')[0]}&rsquo;s profile
-          </Link>
-          <div className="flex flex-col gap-2">
-            <h1 className="font-display text-5xl font-bold tracking-tight text-ink">
-              Pay for your session
-            </h1>
-            <p className="font-sans text-lg text-ink-soft">
-              You&rsquo;re booking a {selection.service.title} with {mentor.name} on{' '}
-              {formatShortDate(selection.date)}.
-            </p>
-          </div>
-          <InfoNote icon={<Sparkles className="size-5" />} tone="accent">
-            <span className="font-semibold">Stripe test mode.</span> This checkout uses Stripe test
-            credentials and does not move real money.
-          </InfoNote>
-          <section className="flex flex-col gap-4 rounded-[20px] border border-line bg-surface p-7">
-            <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
-              Payment details
-            </h2>
-            <p className="font-sans text-sm text-ink-soft">Paying as {userEmail}</p>
-            <PaymentElement
-              options={{
-                layout: 'tabs',
-                wallets: { applePay: 'auto', googlePay: 'auto', link: 'never' },
-                defaultValues: { billingDetails: { name: userName, email: userEmail } },
-                fields: { billingDetails: { name: 'never', email: 'never' } },
-              }}
-            />
-          </section>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-xl bg-danger-soft px-4 py-3 font-sans text-sm text-danger"
-            >
-              {error}
-            </p>
-          )}
-          <Button
-            type="submit"
-            variant="blue"
-            fullWidth
-            disabled={!stripe || submitting}
-            icon={<ArrowRight className="size-5" />}
-          >
-            {submitting ? 'Processing payment…' : `Pay ${formatEuro(total)} and confirm booking`}
-          </Button>
-          <p className="flex items-center justify-center gap-1.5 text-center font-sans text-xs text-ink-muted">
-            <Lock className="size-3.5" />
-            Payment is processed in Stripe test mode.
-          </p>
-        </div>
-        <aside className="flex h-fit w-full shrink-0 flex-col gap-4 rounded-[20px] border border-line bg-surface p-7 lg:w-95">
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
-            Order summary
-          </h2>
-          <div className="flex items-center gap-3">
-            <Avatar initials={mentor.initials} tone={mentor.avatarTone} size="md" />
-            <div className="flex flex-col">
-              <p className="font-sans text-base font-semibold text-ink">{mentor.name}</p>
-              <p className="font-sans text-sm text-ink-muted">
-                {mentor.headline.split('·')[0]?.trim()}
-              </p>
-            </div>
-          </div>
-          <div className="h-px bg-line" />
-          <SummaryRow
-            icon={<GraduationCap className="size-4" />}
-            title={selection.service.title}
-            detail={selection.service.description}
-          />
-          <SummaryRow
-            icon={<Calendar className="size-4" />}
-            title={formatLongDate(selection.date)}
-          />
-          <SummaryRow
-            icon={<Clock className="size-4" />}
-            title={sessionRange(selection.time, selection.service.duration)}
-            detail={`Lisbon time · ${selection.service.duration}`}
-          />
-          <SummaryRow
-            icon={<Video className="size-4" />}
-            title="Google Meet"
-            detail="Meeting link is not yet provisioned"
-          />
-          <div className="h-px bg-line" />
-          <div className="flex items-center justify-between font-sans text-sm text-ink-soft">
-            <span>Session fee</span>
-            <span>{formatEuro(selection.service.price)}</span>
-          </div>
-          <div className="flex items-center justify-between font-sans text-sm text-ink-soft">
-            <span>Platform fee</span>
-            <span>{formatEuro(PLATFORM_FEE)}</span>
-          </div>
-          <div className="flex items-center justify-between font-sans text-base font-semibold text-ink">
-            <span>Total</span>
-            <span className="font-display text-2xl font-bold tracking-tight">
-              {formatEuro(total)}
-            </span>
-          </div>
-        </aside>
-      </form>
-    </div>
+    <CheckoutNotice
+      title="Checkout closed"
+      message="View your sessions to see this booking’s status."
+    >
+      <Link className="text-secondary" to="/dashboard">
+        My sessions
+      </Link>
+    </CheckoutNotice>
   );
 }
 
-function SummaryRow({ icon, title, detail }: { icon: ReactNode; title: string; detail?: string }) {
+function slotOrServiceUnavailable(cause: unknown) {
+  if (!(cause instanceof ApiError)) return null;
+  if (cause.code === 'slot_unavailable') return 'That time is no longer available.';
+  if (cause.code === 'service_not_found') return 'The selected service is no longer available.';
+  return null;
+}
+
+function ChooseAnotherTime({ mentorId }: { mentorId: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-subtle text-ink-soft">
-        {icon}
-      </span>
-      <div className="flex flex-col">
-        <p className="font-sans text-sm font-semibold text-ink">{title}</p>
-        {detail && <p className="font-sans text-xs text-ink-muted">{detail}</p>}
-      </div>
-    </div>
+    <Link to={`/mentors/${mentorId}`} className={buttonVariants({ variant: 'blue' })}>
+      Choose another time
+    </Link>
   );
 }

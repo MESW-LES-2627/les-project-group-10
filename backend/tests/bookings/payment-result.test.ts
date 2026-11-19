@@ -13,40 +13,29 @@ describe('persisted Stripe result', () => {
   });
 
   it.each([
-    ['pending_payment', '2026-01-01T12:05:00Z', true],
-    ['pending_payment', '2026-01-01T12:15:00Z', false],
-    ['cancelled', '2026-01-01T12:05:00Z', false],
-  ])('handles %s with charge at %s', async (bookingStatus, paidAt, expected) => {
+    ['succeeded', 'confirmed'],
+    ['failed', 'cancelled'],
+    ['expired', 'cancelled'],
+  ] as const)('links a verified %s outcome to a %s booking atomically', async (outcome, status) => {
     query.mockImplementation(async (sql: string) => ({
-      rows: sql.includes('SELECT p.id')
-        ? [
-            {
-              id: 'payment',
-              booking_id: 'booking',
-              status: 'pending',
-              booking_status: bookingStatus,
-              reservation_expires_at: new Date('2026-01-01T12:10:00Z'),
-            },
-          ]
-        : [],
+      rows: sql.includes('SELECT p.id') ? [{ id: 'payment', booking_id: 'booking' }] : [],
     }));
-    await expect(markStripePaymentResult('pi_test', true, new Date(paidAt))).resolves.toEqual({
-      bookingId: 'booking',
-      confirmed: expected,
-    });
+    await markStripePaymentResult('pi_test', outcome);
+    expect(query).toHaveBeenCalledWith('UPDATE payment SET status = $2 WHERE id = $1', [
+      'payment',
+      outcome,
+    ]);
     expect(query).toHaveBeenCalledWith('UPDATE booking SET status = $2 WHERE id = $1', [
       'booking',
-      expected ? 'confirmed' : 'cancelled',
+      status,
     ]);
     expect(query).toHaveBeenCalledWith('COMMIT');
-    expect(release).toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
   });
 
-  it('does not update a payment which was already processed', async () => {
-    query.mockImplementation(async (sql: string) => ({
-      rows: sql.includes('SELECT p.id') ? [{ status: 'succeeded' }] : [],
-    }));
-    await expect(markStripePaymentResult('pi_test', true)).resolves.toBeNull();
+  it('does not update an attempt which is no longer pending', async () => {
+    query.mockResolvedValue({ rows: [] });
+    await markStripePaymentResult('pi_test', 'succeeded');
     expect(query.mock.calls.some(([sql]) => String(sql).startsWith('UPDATE'))).toBe(false);
   });
 });

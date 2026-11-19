@@ -11,10 +11,8 @@ import { app } from '../../src/app.js';
 import { pool } from '../../src/db/pool.js';
 import { withTransaction } from '../../src/db/transaction.js';
 import { createSessionToken } from '../../src/modules/auth/session.js';
-import {
-  createPendingBooking,
-  findPendingStripePayments,
-} from '../../src/modules/bookings/bookings.queries.js';
+import { createPendingBooking } from '../../src/modules/bookings/bookings.queries.js';
+import type Stripe from 'stripe';
 import { stripe } from '../../src/modules/bookings/stripe.js';
 
 let server: Server;
@@ -54,17 +52,35 @@ async function selection() {
     idempotencyKey: randomUUID(),
   };
 }
-function checkout(user: string, input: Awaited<ReturnType<typeof selection>>) {
-  return fetch(`${origin}/api/bookings/checkout/stripe`, {
-    method: 'POST',
+function request(user: string, path: string, body?: object) {
+  return fetch(`${origin}/api/bookings/${path}`, {
+    method: body ? 'POST' : 'GET',
     headers: { 'Content-Type': 'application/json', Cookie: `session=${createSessionToken(user)}` },
-    body: JSON.stringify(input),
+    body: body ? JSON.stringify(body) : undefined,
   });
+}
+function checkout(user: string, input: Awaited<ReturnType<typeof selection>>) {
+  return request(user, 'checkout/stripe', input);
+}
+function getCheckout(user: string, bookingId: string) {
+  return request(user, `checkout/${bookingId}`);
+}
+function retry(user: string, bookingId: string, attemptId: string) {
+  return request(user, `checkout/${bookingId}/retry`, { attemptId });
+}
+function intent(id: string, overrides: Partial<Stripe.PaymentIntent> = {}) {
+  return {
+    id,
+    client_secret: 'test_secret',
+    livemode: false,
+    status: 'requires_payment_method',
+    ...overrides,
+  } as Stripe.PaymentIntent;
 }
 async function state(bookingId: string) {
   return (
     await pool.query(
-      'SELECT b.status AS booking, p.status AS payment, p.stripe_payment_intent_id FROM booking b JOIN payment p ON p.booking_id=b.id WHERE b.id=$1',
+      'SELECT b.status AS booking, p.status AS payment, p.stripe_payment_intent_id FROM booking b JOIN payment p ON p.booking_id=b.id WHERE b.id=$1 ORDER BY p.created_at DESC, p.id DESC',
       [bookingId],
     )
   ).rows[0];
@@ -85,18 +101,13 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(stripe.paymentIntents.create).mockImplementation(
-    async (params) =>
-      ({
-        id: `pi_${params!.metadata!.paymentId}`,
-        client_secret: 'test_secret',
-        livemode: false,
-      }) as never,
+  vi.mocked(stripe.paymentIntents.create).mockImplementation(async (params) =>
+    intent(`pi_${params!.metadata!.paymentId}`),
   );
-  vi.mocked(stripe.paymentIntents.cancel).mockResolvedValue({
-    status: 'canceled',
-    livemode: false,
-  } as never);
+  vi.mocked(stripe.paymentIntents.retrieve).mockImplementation(async (id) => intent(id));
+  vi.mocked(stripe.paymentIntents.cancel).mockImplementation(async (id) =>
+    intent(id, { status: 'canceled' }),
+  );
 });
 afterAll(async () => {
   await new Promise<void>((resolve, reject) =>
@@ -125,31 +136,42 @@ describe('checkout reconciliation and reservation lifecycle', () => {
     expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
   });
 
-  it('expires interrupted attempts and rejects their old idempotency key', async () => {
-    const user = await student(),
-      input = await selection();
-    const attempt = await withTransaction((client) => createPendingBooking(client, user, input));
-    await expire(attempt.bookingId);
-    expect(await findPendingStripePayments({ studentId: user, checkout: input })).toHaveLength(1);
+  it('expires an attempt that was never sent to Stripe and reopens it by its initial key', async () => {
+    const user = await student();
+    const input = await selection();
+    const id = await withTransaction((client) => createPendingBooking(client, user, input));
+    await expire(id);
     const response = await checkout(user, input);
-    expect(response.status).toBe(409);
-    expect((await response.json()).error.code).toBe('payment_attempt_closed');
-    expect(await state(attempt.bookingId)).toMatchObject({
-      booking: 'cancelled',
-      payment: 'failed',
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      booking: { id, status: 'cancelled', payment_status: 'expired' },
+      clientSecret: null,
     });
+    expect(await state(id)).toMatchObject({ booking: 'cancelled', payment: 'expired' });
     expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
-    expect((await checkout(user, { ...input, idempotencyKey: randomUUID() })).status).toBe(200);
   });
 
-  it('rejects expired retries even when called without request-time cleanup', async () => {
-    const user = await student(),
-      input = await selection();
-    const attempt = await withTransaction((client) => createPendingBooking(client, user, input));
-    await expire(attempt.bookingId);
-    await expect(
-      withTransaction((client) => createPendingBooking(client, user, input)),
-    ).rejects.toMatchObject({ code: 'payment_attempt_closed' });
+  it('recovers the same booking and intent after Stripe creates it but its response is lost', async () => {
+    const user = await student();
+    const input = await selection();
+    vi.mocked(stripe.paymentIntents.create).mockRejectedValueOnce(new Error('Connection lost'));
+    const initial = await checkout(user, input);
+    expect(initial.status).toBe(200);
+    const first = await initial.json();
+    expect(first).toMatchObject({ booking: { payment_status: 'pending' }, clientSecret: null });
+
+    const replay = await checkout(user, input);
+    expect(replay.status).toBe(200);
+    expect(replay.headers.get('cache-control')).toBe('no-store');
+    expect(await replay.json()).toMatchObject({
+      booking: { id: first.booking.id, status: 'pending_payment' },
+      attemptId: first.attemptId,
+      clientSecret: 'test_secret',
+    });
+    expect(stripe.paymentIntents.create).toHaveBeenCalledTimes(2);
+    const [original, repeated] = vi.mocked(stripe.paymentIntents.create).mock.calls;
+    expect(original).toEqual(repeated);
+    expect(original[1]).toEqual({ idempotencyKey: input.idempotencyKey });
   });
 
   it('keeps a slot reserved when its old Stripe payment cannot be verified', async () => {
@@ -157,11 +179,11 @@ describe('checkout reconciliation and reservation lifecycle', () => {
       b = await student(),
       input = await selection();
     const original = await (await checkout(a, input)).json();
-    await expire(original.bookingId);
+    await expire(original.booking.id);
     vi.mocked(stripe.paymentIntents.retrieve).mockRejectedValue(new Error('Stripe unavailable'));
     const response = await checkout(b, { ...input, idempotencyKey: randomUUID() });
     expect(response.status).toBe(502);
-    expect(await state(original.bookingId)).toMatchObject({
+    expect(await state(original.booking.id)).toMatchObject({
       booking: 'pending_payment',
       payment: 'pending',
     });
@@ -173,16 +195,17 @@ describe('checkout reconciliation and reservation lifecycle', () => {
       b = await student(),
       input = await selection();
     const original = await (await checkout(a, input)).json();
-    await expire(original.bookingId);
-    vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
-      status: 'succeeded',
-      livemode: false,
-      amount_received: 3150,
-      currency: 'eur',
-      latest_charge: { paid: true, created: Math.floor(Date.now() / 1000) - 120 },
-    } as never);
+    await expire(original.booking.id);
+    vi.mocked(stripe.paymentIntents.retrieve).mockImplementation(async (id) =>
+      intent(id, {
+        status: 'succeeded',
+        amount_received: 3150,
+        currency: 'eur',
+        latest_charge: { paid: true } as Stripe.Charge,
+      }),
+    );
     expect((await checkout(b, { ...input, idempotencyKey: randomUUID() })).status).toBe(409);
-    expect(await state(original.bookingId)).toMatchObject({
+    expect(await state(original.booking.id)).toMatchObject({
       booking: 'confirmed',
       payment: 'succeeded',
     });
@@ -194,15 +217,11 @@ describe('checkout reconciliation and reservation lifecycle', () => {
       b = await student(),
       input = await selection();
     const original = await (await checkout(a, input)).json();
-    await expire(original.bookingId);
-    vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
-      status: 'requires_payment_method',
-      livemode: false,
-    } as never);
+    await expire(original.booking.id);
     expect((await checkout(b, { ...input, idempotencyKey: randomUUID() })).status).toBe(200);
-    expect(await state(original.bookingId)).toMatchObject({
+    expect(await state(original.booking.id)).toMatchObject({
       booking: 'cancelled',
-      payment: 'failed',
+      payment: 'expired',
     });
     expect(stripe.paymentIntents.cancel).toHaveBeenCalledOnce();
   });
@@ -212,17 +231,22 @@ describe('checkout reconciliation and reservation lifecycle', () => {
       input = await selection();
     vi.mocked(stripe.paymentIntents.create).mockImplementation(async (params) => {
       await expire(params!.metadata!.bookingId as string);
-      return { id: 'pi_too_late', client_secret: 'must_not_be_returned' } as never;
+      return intent('pi_too_late', { client_secret: 'must_not_be_returned' });
     });
     const response = await checkout(user, input);
-    expect(response.status).toBe(409);
-    expect(await response.text()).not.toContain('must_not_be_returned');
-    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_too_late');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      booking: { payment_status: 'expired' },
+      clientSecret: null,
+    });
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_too_late', {
+      expand: ['latest_charge'],
+    });
     const rows = await pool.query(
       'SELECT p.status AS payment,b.status AS booking FROM payment p JOIN booking b ON b.id=p.booking_id WHERE b.student_id=$1',
       [user],
     );
-    expect(rows.rows).toEqual([{ payment: 'failed', booking: 'cancelled' }]);
+    expect(rows.rows).toEqual([{ payment: 'expired', booking: 'cancelled' }]);
   });
 
   it('allows only one concurrent active booking for a slot', async () => {
@@ -235,6 +259,134 @@ describe('checkout reconciliation and reservation lifecycle', () => {
     ]);
     expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
     expect(stripe.paymentIntents.create).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an uncertain creation reserved at expiry until Stripe can recover and cancel it', async () => {
+    const a = await student();
+    const b = await student();
+    const input = await selection();
+    vi.mocked(stripe.paymentIntents.create)
+      .mockRejectedValueOnce(new Error('Provider response lost'))
+      .mockRejectedValueOnce(new Error('Provider unavailable'));
+    const original = await (await checkout(a, input)).json();
+    await expire(original.booking.id);
+
+    const competingInput = { ...input, idempotencyKey: randomUUID() };
+    expect((await checkout(b, competingInput)).status).toBe(502);
+    expect(await state(original.booking.id)).toMatchObject({ payment: 'pending' });
+    expect(stripe.paymentIntents.cancel).not.toHaveBeenCalled();
+
+    expect((await checkout(b, competingInput)).status).toBe(200);
+    expect(await state(original.booking.id)).toMatchObject({ payment: 'expired' });
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith(`pi_${original.attemptId}`, {
+      expand: ['latest_charge'],
+    });
+  });
+
+  it('persists a decline, reuses the quote on retry, and ignores stale retry requests', async () => {
+    const user = await student();
+    const input = await selection();
+    const original = await (await checkout(user, input)).json();
+    const id = original.booking.id;
+    const originalAttempt = original.attemptId;
+    vi.mocked(stripe.paymentIntents.retrieve).mockImplementation(async (stripeId) =>
+      intent(stripeId, {
+        last_payment_error: { code: 'card_declined' } as Stripe.PaymentIntent.LastPaymentError,
+      }),
+    );
+
+    const declined = await (await getCheckout(user, id)).json();
+    expect(declined).toMatchObject({
+      booking: { id, status: 'cancelled', payment_status: 'failed' },
+      attemptId: originalAttempt,
+      clientSecret: null,
+    });
+    await pool.query('UPDATE service SET price_cents = 4000, title = $2 WHERE id = $1', [
+      input.serviceId,
+      'Edited service',
+    ]);
+    vi.mocked(stripe.paymentIntents.retrieve).mockImplementation(async (stripeId) =>
+      intent(stripeId),
+    );
+
+    const responses = await Promise.all([
+      retry(user, id, originalAttempt),
+      retry(user, id, originalAttempt),
+    ]);
+    expect(responses.map(({ status }) => status)).toEqual([200, 200]);
+    const [firstRetry, replayed] = await Promise.all(responses.map((response) => response.json()));
+    expect(firstRetry).toMatchObject({
+      booking: {
+        id,
+        status: 'pending_payment',
+        payment_status: 'pending',
+        amount_cents: 3150,
+        service_title: 'Review',
+      },
+    });
+    expect(firstRetry.attemptId).not.toBe(originalAttempt);
+    expect(replayed.attemptId).toBe(firstRetry.attemptId);
+
+    await expire(id);
+    const expired = await (await getCheckout(user, id)).json();
+    expect(expired.booking.payment_status).toBe('expired');
+    const stale = await (await retry(user, id, originalAttempt)).json();
+    expect(stale).toEqual(expired);
+    const { rows } = await pool.query(
+      'SELECT id, status, amount_cents FROM payment WHERE booking_id = $1 ORDER BY created_at',
+      [id],
+    );
+    expect(rows).toEqual([
+      { id: originalAttempt, status: 'failed', amount_cents: 3150 },
+      { id: firstRetry.attemptId, status: 'expired', amount_cents: 3150 },
+    ]);
+  });
+
+  it('rechecks availability when retrying after another student takes the slot', async () => {
+    const a = await student();
+    const b = await student();
+    const input = await selection();
+    const original = await (await checkout(a, input)).json();
+    await expire(original.booking.id);
+    expect((await checkout(b, { ...input, idempotencyKey: randomUUID() })).status).toBe(200);
+    const response = await retry(a, original.booking.id, original.attemptId);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: 'slot_unavailable' } });
+    expect(await state(original.booking.id)).toMatchObject({ payment: 'expired' });
+  });
+
+  it('reserves a freed slot exactly once when a retry races a fresh checkout', async () => {
+    const a = await student();
+    const b = await student();
+    const input = await selection();
+    const original = await (await checkout(a, input)).json();
+    await expire(original.booking.id);
+    const expired = await (await getCheckout(a, original.booking.id)).json();
+    expect(expired.booking.payment_status).toBe('expired');
+
+    const responses = await Promise.all([
+      retry(a, original.booking.id, original.attemptId),
+      checkout(b, { ...input, idempotencyKey: randomUUID() }),
+    ]);
+    expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+    expect(stripe.paymentIntents.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('denies another student status and retry without contacting Stripe', async () => {
+    const owner = await student();
+    const other = await student();
+    const original = await (await checkout(owner, await selection())).json();
+    vi.clearAllMocks();
+    const responses = await Promise.all([
+      getCheckout(other, original.booking.id),
+      retry(other, original.booking.id, original.attemptId),
+    ]);
+    for (const response of responses) {
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ error: { code: 'booking_not_found' } });
+    }
+    expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
   });
 
   it('returns a controlled response for a malformed booking id', async () => {
