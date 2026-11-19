@@ -8,6 +8,7 @@ import {
   Search,
   Settings,
   UserRound,
+  UsersRound,
   SlidersHorizontal,
   Briefcase,
 } from 'lucide-react';
@@ -55,8 +56,12 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
       ? [{ label: 'Mentor sessions', icon: Calendar, href: '/dashboard/mentor-sessions' }]
       : []),
     { label: 'Messages', icon: MessageSquare, href: '/dashboard#messages' },
-    { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved' },
-    { label: 'Settings', icon: Settings, href: '/dashboard#settings' },
+    ...(user?.isAdmin
+      ? []
+      : [
+          { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved' },
+          { label: 'Settings', icon: Settings, href: '/dashboard#settings' },
+        ]),
     ...(user?.isStudent
       ? [{ label: 'Student profile', icon: UserRound, href: '/dashboard/student' }]
       : []),
@@ -66,6 +71,9 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
           { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
           { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
         ]
+      : []),
+    ...(user?.isAdmin
+      ? [{ label: 'Users', icon: UsersRound, href: '/dashboard/admin/users' }]
       : []),
   ];
 

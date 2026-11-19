@@ -29,6 +29,7 @@ const owner = {
   email: 'jane@example.com',
   isMentor: true,
   isStudent: true,
+  isAdmin: false,
   onboardingFinished: true,
 };
 const saved: EditableMentorProfile = {

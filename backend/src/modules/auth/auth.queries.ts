@@ -44,8 +44,15 @@ export async function findRoles(userId: string) {
   return {
     isStudent: student.rows.length > 0,
     isMentor: mentor.rows.length > 0,
+    isAdmin: await isAdmin(userId),
     onboardingFinished: mentor.rows[0]?.onboarding_finished ?? false,
   };
+}
+
+// an admin is a user with a row in the admin table
+export async function isAdmin(userId: string): Promise<boolean> {
+  const { rows } = await pool.query('SELECT 1 FROM admin WHERE user_id = $1', [userId]);
+  return rows.length > 0;
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | undefined> {

@@ -24,6 +24,7 @@ import BookingConfirmedPage from '@/pages/mentors/BookingConfirmedPage';
 import StudentProfilePage from '@/pages/dashboard/StudentProfilePage';
 import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
+import AdminUsersPage from '@/pages/admin/AdminUsersPage';
 import MentorSlotsPage from '@/pages/dashboard/MentorSlotsPage';
 import MentorSessionsPage from '@/pages/dashboard/MentorSessionsPage';
 import MentorSessionDetailsPage from '@/pages/dashboard/MentorSessionDetailsPage';
@@ -115,6 +116,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <MentorServicesPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/admin/users',
+    element: (
+      <RequireAuth>
+        <AdminUsersPage />
       </RequireAuth>
     ),
   },

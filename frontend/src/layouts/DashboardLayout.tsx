@@ -19,8 +19,13 @@ export interface DashboardLayoutProps {
 export function DashboardLayout({ title, children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
-  // Students see their student profile; a mentor-only account goes to the mentor editor.
-  const profilePath = user?.isStudent ? '/dashboard/student' : '/dashboard/profile';
+  // Students see their student profile; a mentor goes to the mentor editor. An admin has no
+  // profile page (an admin is never a student or a mentor), so the avatar leads to the user list.
+  const profilePath = user?.isAdmin
+    ? '/dashboard/admin/users'
+    : user?.isStudent
+      ? '/dashboard/student'
+      : '/dashboard/profile';
 
   return (
     <div className="flex min-h-screen w-full bg-canvas">

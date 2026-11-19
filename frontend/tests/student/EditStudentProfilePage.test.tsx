@@ -20,6 +20,7 @@ const student = {
   email: 'jane@example.com',
   isStudent: true,
   isMentor: false,
+  isAdmin: false,
   onboardingFinished: false,
 };
 const categories = [
