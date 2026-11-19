@@ -11,7 +11,7 @@ import { createSessionToken } from '../../src/modules/auth/session.js';
 // The test database is shared with other suites, so these tests create their own users and
 // never assert exact totals. Their created_at is far in the future, so with the newest-first
 // order they always come first.
-const ids = {
+const ids: Record<string, string> = {
   admin: randomUUID(),
   bannedAdmin: randomUUID(),
   student: randomUUID(), // student only
@@ -243,13 +243,8 @@ describe('GET /api/me', () => {
     expect(student.user.isAdmin).toBe(false);
   });
 
-  it('reports an admin who is also a student with both roles', async () => {
-    await pool.query('INSERT INTO student (user_id) VALUES ($1)', [ids.admin]);
-    try {
-      const body = await (await get('/api/me', ids.admin)).json();
-      expect(body.user).toMatchObject({ isAdmin: true, isStudent: true, isMentor: false });
-    } finally {
-      await pool.query('DELETE FROM student WHERE user_id = $1', [ids.admin]);
-    }
+  it('reports an admin with no student or mentor role', async () => {
+    const body = await (await get('/api/me', ids.admin)).json();
+    expect(body.user).toMatchObject({ isAdmin: true, isStudent: false, isMentor: false });
   });
 });

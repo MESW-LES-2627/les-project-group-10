@@ -22,6 +22,8 @@ interface RailItem {
   icon: LucideIcon;
   href?: string;
   badge?: number;
+  /** Student features: not shown to an admin (an admin is never a student or a mentor). */
+  hiddenForAdmin?: boolean;
 }
 
 function isActiveItem(href: string | undefined, pathname: string, hash: string) {
@@ -36,10 +38,10 @@ function isActiveItem(href: string | undefined, pathname: string, hash: string) 
 const RAIL_ITEMS: RailItem[] = [
   { label: 'Overview', icon: SlidersHorizontal, href: '/dashboard' },
   { label: 'Find a mentor', icon: Search, href: '/dashboard/mentors' },
-  { label: 'Sessions', icon: Calendar, href: '/dashboard#sessions' },
+  { label: 'Sessions', icon: Calendar, href: '/dashboard#sessions', hiddenForAdmin: true },
   { label: 'Messages', icon: MessageSquare, href: '/dashboard#messages' },
-  { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved' },
-  { label: 'Settings', icon: Settings, href: '/dashboard#settings' },
+  { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved', hiddenForAdmin: true },
+  { label: 'Settings', icon: Settings, href: '/dashboard#settings', hiddenForAdmin: true },
 ];
 
 export interface DashboardSidebarProps {
@@ -54,6 +56,7 @@ export interface DashboardSidebarProps {
 export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
   const { pathname, hash } = useLocation();
   const { user, logout } = useAuth();
+  const railItems = user?.isAdmin ? RAIL_ITEMS.filter((item) => !item.hiddenForAdmin) : RAIL_ITEMS;
 
   return (
     <aside
@@ -69,7 +72,7 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {[
-          ...RAIL_ITEMS,
+          ...railItems,
           ...(user?.isStudent
             ? [{ label: 'Student profile', icon: UserRound, href: '/dashboard/student' }]
             : []),

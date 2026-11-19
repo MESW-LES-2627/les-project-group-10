@@ -7,8 +7,16 @@ is in [admin-user-list-plan.md](admin-user-list-plan.md).
 ## Admin role
 
 An admin is a user with a row in the `admin` table (migration `010_admin.sql`). Like `student` and
-`mentor`, it is a subclass of `"user"` that shares the user's id, so one account may be an admin and
-also a student or a mentor. There is no role column and no API that creates admins.
+`mentor`, it is a subclass of `"user"` that shares the user's id. There is no role column and no API
+that creates admins.
+
+**An admin account is separate:** it can never also be a student or a mentor. The database enforces
+this (migration `011_admin_role_exclusive.sql`) with triggers on `admin`, `student` and `mentor`. An
+insert that would break the rule fails with a `check_violation` error (SQLSTATE `23514`), in either
+order and also for hand-written SQL. Each trigger locks the user's row first, so two simultaneous
+inserts cannot both succeed. The migration refuses to run if an account already breaks the rule.
+Student and mentor still overlap: one account may be both. A person who needs both an admin account
+and a student or mentor account uses two accounts, with different emails.
 
 `GET /api/me` returns `isAdmin` next to `isStudent` and `isMentor`.
 
@@ -22,7 +30,7 @@ also a student or a mentor. There is no role column and no API that creates admi
 | Password | `Password123!`      |
 
 Unlike the other seeded accounts, this password hash uses the algorithm the login verifies (scrypt),
-so this account **can** log in. After logging in, an admin with no student or mentor role lands on
+so this account **can** log in. After logging in, an admin lands on
 the user list.
 
 > **Security:** the password is public in this repository. **Never run the seed on a shared or
@@ -83,8 +91,8 @@ Behavior:
 - Pagination is offset based (`LIMIT` / `OFFSET`), and `total` comes from a separate `COUNT(*)`
   with the same filter. If someone registers while an admin is paging, a row can shift between pages.
 - The query selects only the columns above. The password hash is never read.
-- Mentors who have not finished onboarding are listed. Admin-only accounts (no student or mentor
-  row) are not listed in either tab.
+- Mentors who have not finished onboarding are listed. Admin accounts are never listed, because an
+  admin has no student or mentor row.
 - "Also mentor" / "Also student" is computed with `EXISTS` from the role tables, not stored.
 
 ## Page
@@ -94,21 +102,22 @@ table with Name, Email, ID, Status (Active or Banned), Created and the other rol
 Previous and Next buttons move through the pages, with a "Page X of Y" label. Changing tab goes back
 to page 1. The page shows a loading message, an empty state, and an error state with a Retry button.
 
-Navigation: a **Users** item in the dashboard sidebar, shown only to admins. An admin with no student
-or mentor role is sent to this page after login, and their avatar links to it.
+Navigation: a **Users** item in the dashboard sidebar, shown only to admins. For an admin the
+sidebar hides the student-only items **Sessions**, **Saved mentors** and **Settings**. An admin is
+sent to this page after login, and their avatar links to it.
 
 A user who is not an admin is redirected to `/dashboard`. That is only a convenience: the API
 answers `403` to non-admins whatever the page does.
 
 ## Code map
 
-| Part     | Files                                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------- |
-| Database | `backend/db/migrations/010_admin.sql`, admin section at the end of `backend/db/seed.sql`          |
-| Backend  | `backend/src/modules/admin/` (routes, queries, schemas), `backend/src/middleware/requireAdmin.ts` |
-| Roles    | `findRoles` and `isAdmin` in `backend/src/modules/auth/auth.queries.ts`                           |
-| Frontend | `frontend/src/api/admin.ts`, `frontend/src/pages/admin/AdminUsersPage.tsx`                        |
-| Tests    | `backend/tests/admin/`, `frontend/tests/admin/`, `frontend/tests/auth/authRedirect.test.ts`       |
+| Part     | Files                                                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Database | `backend/db/migrations/010_admin.sql`, `011_admin_role_exclusive.sql`, admin section at the end of `backend/db/seed.sql` |
+| Backend  | `backend/src/modules/admin/` (routes, queries, schemas), `backend/src/middleware/requireAdmin.ts`                        |
+| Roles    | `findRoles` and `isAdmin` in `backend/src/modules/auth/auth.queries.ts`                                                  |
+| Frontend | `frontend/src/api/admin.ts`, `frontend/src/pages/admin/AdminUsersPage.tsx`                                               |
+| Tests    | `backend/tests/admin/`, `frontend/tests/admin/`, `frontend/tests/auth/authRedirect.test.ts`                              |
 
 ## Not in this iteration
 

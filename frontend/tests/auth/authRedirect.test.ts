@@ -31,18 +31,13 @@ describe('pathAfterLogin', () => {
     expect(pathAfterLogin(user)).toBe('/mentor-onboarding/profile');
   });
 
-  it('sends an admin with no student or mentor role to the user list', () => {
+  it('sends an admin to the user list', () => {
     const user = buildUser({ isAdmin: true });
     expect(pathAfterLogin(user)).toBe('/dashboard/admin/users');
   });
 
-  it('keeps an admin who is also a student on the dashboard', () => {
-    const user = buildUser({ isAdmin: true, isStudent: true });
-    expect(pathAfterLogin(user)).toBe('/dashboard');
-  });
-
-  it('keeps an admin who is also a mentor on the mentor path', () => {
-    const user = buildUser({ isAdmin: true, isMentor: true, onboardingFinished: true });
+  it('still sends a student who is also a mentor to the mentor path', () => {
+    const user = buildUser({ isStudent: true, isMentor: true, onboardingFinished: true });
     expect(pathAfterLogin(user)).toBe(`/mentors/${user.id}`);
   });
 });
