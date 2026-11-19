@@ -33,27 +33,41 @@ function isActiveItem(href: string | undefined, pathname: string, hash: string) 
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-const RAIL_ITEMS: RailItem[] = [
-  { label: 'Overview', icon: SlidersHorizontal, href: '/dashboard' },
-  { label: 'Find a mentor', icon: Search, href: '/dashboard/mentors' },
-  { label: 'Sessions', icon: Calendar, href: '/dashboard#sessions' },
-  { label: 'Messages', icon: MessageSquare, href: '/dashboard#messages' },
-  { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved' },
-  { label: 'Settings', icon: Settings, href: '/dashboard#settings' },
-];
-
 export interface DashboardSidebarProps {
   open: boolean;
   onNavigate: () => void;
 }
 
 /**
- * Full-height navigation for the signed-in student app. Stays on the
+ * Full-height navigation for the signed-in app. Stays on the
  * left of the dashboard; on small screens it slides in over the page.
  */
 export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
   const { pathname, hash } = useLocation();
   const { user, logout } = useAuth();
+  const railItems: RailItem[] = [
+    { label: 'Overview', icon: SlidersHorizontal, href: '/dashboard' },
+    { label: 'Find a mentor', icon: Search, href: '/dashboard/mentors' },
+    ...(user?.isStudent
+      ? [{ label: 'Sessions', icon: Calendar, href: '/dashboard#sessions' }]
+      : []),
+    ...(user?.isMentor
+      ? [{ label: 'Mentor sessions', icon: Calendar, href: '/dashboard/mentor-sessions' }]
+      : []),
+    { label: 'Messages', icon: MessageSquare, href: '/dashboard#messages' },
+    { label: 'Saved mentors', icon: Bookmark, href: '/dashboard#saved' },
+    { label: 'Settings', icon: Settings, href: '/dashboard#settings' },
+    ...(user?.isStudent
+      ? [{ label: 'Student profile', icon: UserRound, href: '/dashboard/student' }]
+      : []),
+    ...(user?.isMentor
+      ? [
+          { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
+          { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
+          { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
+        ]
+      : []),
+  ];
 
   return (
     <aside
@@ -68,19 +82,7 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        {[
-          ...RAIL_ITEMS,
-          ...(user?.isStudent
-            ? [{ label: 'Student profile', icon: UserRound, href: '/dashboard/student' }]
-            : []),
-          ...(user?.isMentor
-            ? [
-                { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
-                { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
-                { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
-              ]
-            : []),
-        ].map((item) => {
+        {railItems.map((item) => {
           const active = isActiveItem(item.href, pathname, hash);
           const className = clsx(
             'flex w-full items-center gap-3 rounded-[10px] px-3.5 py-3 text-left',
