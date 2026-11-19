@@ -5,6 +5,7 @@
 - [Admin user list](admin/admin-user-list.md)
 - [Stripe payments](payments/stripe.md)
 - [Student booking and payment history](payments/student-booking-history.md)
+- [Mentor session history](bookings/mentor-session-history.md)
 - [Mentor profile editing](profile/mentor-profile-editing.md)
 - [Student profile page](profile/student-profile.md)
 

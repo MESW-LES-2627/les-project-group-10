@@ -15,6 +15,12 @@ export const attemptStatusLabels: Record<PaymentAttempt['status'], string> = {
   expired: 'Expired',
 };
 
+export function formatSessionPaymentStatus(status: PaymentAttempt['status'] | null) {
+  if (status === null) return 'Not attempted';
+  if (status === 'succeeded') return 'Succeeded (test)';
+  return attemptStatusLabels[status];
+}
+
 export function formatHistoryDate(timestamp: string) {
   const { date, time } = lisbonBookingTime(timestamp);
   return `${formatTicketDate(date)} · ${time} Lisbon time`;

@@ -6,7 +6,10 @@ import { findRoles } from './modules/auth/auth.queries.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { mentorsRouter } from './modules/mentors/mentors.routes.js';
 import { bookingsRouter } from './modules/bookings/bookings.routes.js';
-import { bookingHistoryRouter } from './modules/bookings/bookingHistory.routes.js';
+import {
+  bookingHistoryRouter,
+  mentorSessionsRouter,
+} from './modules/bookings/bookingHistory.routes.js';
 import { categoriesRouter } from './modules/categories/categories.routes.js';
 import { studentsRouter } from './modules/student/student.routes.js';
 import { pool } from './db/pool.js';
@@ -39,6 +42,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/mentors', mentorsRouter);
 app.use('/api/bookings/history', bookingHistoryRouter);
+app.use('/api/bookings/mentor-sessions', mentorSessionsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/students', studentsRouter);
 app.use('/api/categories', categoriesRouter);

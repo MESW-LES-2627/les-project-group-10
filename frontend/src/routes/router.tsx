@@ -26,6 +26,8 @@ import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
 import AdminUsersPage from '@/pages/admin/AdminUsersPage';
 import MentorSlotsPage from '@/pages/dashboard/MentorSlotsPage';
+import MentorSessionsPage from '@/pages/dashboard/MentorSessionsPage';
+import MentorSessionDetailsPage from '@/pages/dashboard/MentorSessionDetailsPage';
 import { RequireAuth } from '@/layouts/RequireAuth';
 
 /**
@@ -50,6 +52,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <StudentBookingDetailsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/mentor-sessions',
+    element: (
+      <RequireAuth>
+        <MentorSessionsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/mentor-sessions/:bookingId',
+    element: (
+      <RequireAuth>
+        <MentorSessionDetailsPage />
       </RequireAuth>
     ),
   },

@@ -27,8 +27,8 @@ async function newUser(username: string, role: 'student' | 'mentor') {
   return id;
 }
 
-async function newService() {
-  const mentor = await newUser(mentorName, 'mentor');
+async function newService(mentorId?: string) {
+  const mentor = mentorId ?? (await newUser(mentorName, 'mentor'));
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO service (mentor_id, title, description, price_cents, duration_minutes)
      VALUES ($1, 'Databases', 'SQL practice', 3000, 60) RETURNING id`,
@@ -60,10 +60,14 @@ async function newAttempt(bookingId: string, status: string, createdAt: string, 
   return rows[0].id;
 }
 
-function request(userId?: string, bookingId?: string) {
-  return fetch(`${origin}/api/bookings/history${bookingId ? `/${bookingId}` : ''}`, {
+function request(userId?: string, bookingId?: string, path = 'history') {
+  return fetch(`${origin}/api/bookings/${path}${bookingId ? `/${bookingId}` : ''}`, {
     headers: userId ? { Cookie: `session=${createSessionToken(userId)}` } : undefined,
   });
+}
+
+function mentorRequest(userId?: string, bookingId?: string) {
+  return request(userId, bookingId, 'mentor-sessions');
 }
 
 beforeAll(async () => {
@@ -207,5 +211,106 @@ describe('student booking history', () => {
     });
     expect((await request(owner, 'invalid-id')).status).toBe(404);
     expect((await (await request(owner, id)).json()).booking.payments).toEqual([]);
+  });
+});
+
+describe('mentor session history', () => {
+  it('splits owned sessions by start time and returns the latest payment outcome', async () => {
+    const mentor = await newUser(mentorName, 'mentor');
+    const student = await newUser('Mariana Costa', 'student');
+    const service = await newService(mentor);
+    const anotherService = await newService(mentor);
+    const old = await newBooking(student, service, -3, 'completed');
+    const recent = await newBooking(student, anotherService, -1, 'confirmed');
+    const upcoming = await newBooking(student, service, 1, 'confirmed');
+    const cancelled = await newBooking(student, service, 3, 'cancelled');
+    const pending = await newBooking(student, service, 4, 'pending_payment');
+    await newBooking(student, await newService(), 2, 'confirmed');
+    await newAttempt(upcoming.id, 'failed', '2026-01-01T14:00:00Z');
+    await newAttempt(upcoming.id, 'succeeded', '2026-01-01T14:01:00Z');
+    await newAttempt(cancelled.id, 'failed', '2026-01-02T14:00:00Z');
+    await newAttempt(recent.id, 'succeeded', '2026-01-03T14:00:00Z');
+
+    const response = await mentorRequest(mentor);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({
+      upcoming: [
+        { id: upcoming.id, status: 'confirmed', payment_status: 'succeeded' },
+        { id: cancelled.id, status: 'cancelled', payment_status: 'failed' },
+        { id: pending.id, status: 'pending_payment', payment_status: null },
+      ],
+      past: [
+        { id: recent.id, status: 'confirmed', payment_status: 'succeeded' },
+        { id: old.id, status: 'completed' },
+      ],
+    });
+
+    await pool.query("UPDATE booking SET scheduled_at = now() - interval '1 hour' WHERE id = $1", [
+      upcoming.id,
+    ]);
+    expect(await (await mentorRequest(mentor)).json()).toMatchObject({
+      upcoming: [{ id: cancelled.id }, { id: pending.id }],
+      past: [{ id: upcoming.id, status: 'confirmed' }, { id: recent.id }, { id: old.id }],
+    });
+  });
+
+  it('returns the booked service snapshot and only the session detail fields', async () => {
+    const mentor = await newUser(mentorName, 'mentor');
+    const student = await newUser('Mariana Costa', 'student');
+    const service = await newService(mentor);
+    const { id, scheduled_at } = await newBooking(student, service, 1, 'pending_payment');
+    const payment = await newAttempt(id, 'pending', '2026-01-01T14:00:00Z');
+    await pool.query(
+      `UPDATE service SET title = 'Renamed', duration_minutes = 90, is_active = false WHERE id = $1`,
+      [service],
+    );
+
+    const response = await mentorRequest(mentor, id);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      session: {
+        id,
+        student_name: 'Mariana Costa',
+        service_title: 'Databases',
+        duration_minutes: 60,
+        scheduled_at: scheduled_at.toISOString(),
+        status: 'pending_payment',
+        payment_status: 'pending',
+      },
+    });
+
+    await pool.query("UPDATE booking SET status = 'cancelled' WHERE id = $1", [id]);
+    await pool.query("UPDATE payment SET status = 'expired' WHERE id = $1", [payment]);
+    expect(await (await mentorRequest(mentor, id)).json()).toMatchObject({
+      session: { status: 'cancelled', payment_status: 'expired' },
+    });
+  });
+
+  it('returns an empty list for other mentors and denies access to private session details', async () => {
+    const owner = await newUser(mentorName, 'mentor');
+    const otherMentor = await newUser('Another mentor', 'mentor');
+    const student = await newUser('Mariana Costa', 'student');
+    const { id } = await newBooking(student, await newService(owner), 1, 'confirmed');
+
+    expect(await (await mentorRequest(otherMentor)).json()).toEqual({ upcoming: [], past: [] });
+    expect((await mentorRequest()).status).toBe(401);
+    expect((await mentorRequest(undefined, id)).status).toBe(401);
+    expect((await mentorRequest(student)).status).toBe(403);
+    expect((await mentorRequest(student, id)).status).toBe(403);
+
+    const privateSession = await mentorRequest(otherMentor, id);
+    expect(privateSession.status).toBe(404);
+    expect(privateSession.headers.get('cache-control')).toBe('no-store');
+    expect(await privateSession.json()).toEqual({
+      error: { code: 'booking_not_found', message: 'Session not found' },
+    });
+    for (const missingId of ['invalid-id', randomUUID()]) {
+      const missingSession = await mentorRequest(owner, missingId);
+      expect(missingSession.status).toBe(404);
+      expect(await missingSession.json()).toEqual({
+        error: { code: 'booking_not_found', message: 'Session not found' },
+      });
+    }
   });
 });
