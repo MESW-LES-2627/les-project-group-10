@@ -5,7 +5,10 @@ import { ArrowRight, Bookmark, Calendar, CheckCircle2, CreditCard } from 'lucide
 import { buttonVariants } from '@/components/ui';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
+import { StudentBookingHistory } from '@/components/dashboard/StudentBookingHistory';
 import { UpcomingSessionRow } from '@/components/dashboard/UpcomingSessionRow';
+import { getBookingHistory } from '@/api/bookingHistory';
+import type { BookingHistory } from '@/api/bookingHistory';
 import { getUpcomingBookings } from '@/api/bookings';
 import type { BookingRecord } from '@/api/bookings';
 import { useAuth } from '@/auth/useAuth';
@@ -14,8 +17,13 @@ import { firstName, formatEuro, sessionRange } from '@/lib/booking';
 /** Reads confirmed sessions from the API so this view follows persisted state. */
 export default function StudentDashboardPage() {
   const { user } = useAuth();
+  const studentId = user?.isStudent ? user.id : null;
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyResult, setHistoryResult] = useState<{
+    studentId: string;
+    data: BookingHistory | null;
+  }>();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +42,25 @@ export default function StudentDashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    getBookingHistory()
+      .then((data) => {
+        if (!cancelled) setHistoryResult({ studentId, data });
+      })
+      .catch(() => {
+        if (!cancelled) setHistoryResult({ studentId, data: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId]);
+
+  const history = historyResult?.studentId === studentId ? historyResult.data : undefined;
+  const completedCount = history?.pastBookings.filter(
+    (booking) => booking.status === 'completed',
+  ).length;
   const spent = bookings.reduce((sum, booking) => sum + booking.amount_cents / 100, 0);
   const welcome = loading
     ? 'Loading your sessions…'
@@ -43,13 +70,13 @@ export default function StudentDashboardPage() {
 
   return (
     <DashboardLayout title="Student dashboard">
-      <div className="flex flex-1 flex-col gap-8 px-4 py-6 lg:flex-row lg:px-8 lg:py-8">
+      <main className="flex flex-1 flex-col gap-8 px-4 py-6 lg:flex-row lg:px-8 lg:py-8">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <div className="flex w-full flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1.5">
-              <p className="font-display text-3xl font-bold tracking-tight text-ink">
+              <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
                 Welcome back{user ? `, ${firstName(user.username)}` : ''}
-              </p>
+              </h1>
               <p className="font-sans text-base text-ink-soft">{welcome}</p>
             </div>
             <Link
@@ -65,7 +92,7 @@ export default function StudentDashboardPage() {
             <StatCard
               icon={CheckCircle2}
               iconClassName="flex size-10 items-center justify-center rounded-[10px] bg-secondary-soft"
-              value="0"
+              value={completedCount?.toString() ?? '—'}
               label="Completed sessions"
             />
             <StatCard
@@ -147,12 +174,7 @@ export default function StudentDashboardPage() {
             </p>
             <EmptyState title="No saved mentors" body="Mentors you save will be listed here." />
           </section>
-          <section className="flex w-full flex-col gap-5 rounded-[20px] border border-line bg-surface p-7">
-            <p className="font-display text-2xl font-semibold tracking-tight text-ink">
-              Past sessions
-            </p>
-            <EmptyState title="No past sessions" body="Finished sessions will show up here." />
-          </section>
+          {studentId && <StudentBookingHistory history={history} />}
         </div>
         <div className="flex w-full shrink-0 flex-col gap-5 lg:w-80">
           <section
@@ -176,7 +198,7 @@ export default function StudentDashboardPage() {
             <EmptyState title="No messages" body="Chat is not yet available in this prototype." />
           </section>
         </div>
-      </div>
+      </main>
     </DashboardLayout>
   );
 }
