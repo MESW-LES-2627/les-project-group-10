@@ -61,7 +61,6 @@ const mentor: Mentor = {
   experience: [],
   services: [],
   posts: [],
-  availability: [],
   reviews: [],
 };
 let auth: AuthContextValue;

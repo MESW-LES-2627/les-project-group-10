@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Bookmark,
   Calendar,
+  Clock,
   LogOut,
   MessageSquare,
   Search,
@@ -79,6 +80,7 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
           ...(user?.isMentor
             ? [
                 { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
+                { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
                 { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
               ]
             : []),

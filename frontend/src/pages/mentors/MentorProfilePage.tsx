@@ -60,10 +60,11 @@ export default function MentorProfilePage() {
         setMissing(true);
         return;
       }
-      const firstSlot = data.availability[0];
       const restored = readSelection(searchParams.toString(), data);
+      const initialService = restored?.service ?? data.services[0];
+      const firstSlot = initialService?.availability[0];
       setMentor(data);
-      setServiceId(restored?.service.id ?? data.services[0]?.id ?? '');
+      setServiceId(initialService?.id ?? '');
       setDate(restored?.date ?? firstSlot?.date ?? '');
       setTime(
         restored?.time ??
@@ -82,8 +83,20 @@ export default function MentorProfilePage() {
 
   function selectDate(next: string) {
     if (!mentor) return;
+    const activeService =
+      mentor.services.find((item) => item.id === serviceId) ?? mentor.services[0];
     setDate(next);
-    const slot = mentor.availability.find((item) => item.date === next);
+    const slot = activeService?.availability.find((item) => item.date === next);
+    setTime((current) => (slot?.times.includes(current) ? current : (slot?.times[0] ?? '')));
+  }
+
+  function selectService(nextServiceId: string) {
+    if (!mentor) return;
+    const nextService = mentor.services.find((item) => item.id === nextServiceId);
+    setServiceId(nextServiceId);
+    const slot =
+      nextService?.availability.find((item) => item.date === date) ?? nextService?.availability[0];
+    setDate(slot?.date ?? '');
     setTime((current) => (slot?.times.includes(current) ? current : (slot?.times[0] ?? '')));
   }
 
@@ -326,7 +339,7 @@ export default function MentorProfilePage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setServiceId(item.id)}
+                    onClick={() => selectService(item.id)}
                     className={clsx(
                       'flex w-full items-start gap-4 rounded-2xl border p-5 text-left',
                       selected ? 'border-primary bg-primary-soft' : 'border-line bg-canvas',
@@ -457,7 +470,6 @@ export default function MentorProfilePage() {
 
           {!isOwner && service && (
             <BookingPanel
-              mentor={mentor}
               service={service}
               date={date}
               time={time}

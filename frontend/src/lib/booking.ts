@@ -143,7 +143,7 @@ export function readSelection(
   const service = mentor.services.find((item) => item.id === params.get('service'));
   const date = params.get('date') ?? '';
   const time = params.get('time') ?? '';
-  const slot = mentor.availability.find((item) => item.date === date);
+  const slot = service?.availability.find((item) => item.date === date);
   if (!service || !slot || !slot.times.includes(time)) return null;
   return { service, date, time };
 }

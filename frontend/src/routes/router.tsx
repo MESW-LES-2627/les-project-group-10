@@ -16,6 +16,7 @@ import StudentInterestsStep from '@/pages/student-onboarding/StudentInterestsSte
 import StudentPreferencesStep from '@/pages/student-onboarding/StudentPreferencesStep';
 import StudentAllSetPage from '@/pages/student-onboarding/StudentAllSetPage';
 import StudentDashboardPage from '@/pages/dashboard/StudentDashboardPage';
+import StudentBookingDetailsPage from '@/pages/dashboard/StudentBookingDetailsPage';
 import FindMentorsPage from '@/pages/mentors/FindMentorsPage';
 import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
 import CheckoutPage from '@/pages/mentors/CheckoutPage';
@@ -24,6 +25,7 @@ import StudentProfilePage from '@/pages/dashboard/StudentProfilePage';
 import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
 import AdminUsersPage from '@/pages/admin/AdminUsersPage';
+import MentorSlotsPage from '@/pages/dashboard/MentorSlotsPage';
 import { RequireAuth } from '@/layouts/RequireAuth';
 
 /**
@@ -40,6 +42,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <StudentDashboardPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/bookings/:bookingId',
+    element: (
+      <RequireAuth>
+        <StudentBookingDetailsPage />
       </RequireAuth>
     ),
   },
@@ -72,6 +82,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <EditMentorProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/slots',
+    element: (
+      <RequireAuth>
+        <MentorSlotsPage />
       </RequireAuth>
     ),
   },

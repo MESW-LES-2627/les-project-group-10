@@ -78,8 +78,8 @@ beforeAll(async () => {
   );
   bookedServiceId = booked.rows[0].id;
   const slot = await pool.query(
-    "INSERT INTO mentor_availability_slot (mentor_id, starts_at) VALUES ($1, now() + interval '1 day') RETURNING id, starts_at",
-    [ids.owner],
+    "INSERT INTO mentor_availability_slot (mentor_id, service_id, starts_at, ends_at) VALUES ($1, $2, now() + interval '1 day', now() + interval '1 day 1 hour') RETURNING id, starts_at",
+    [ids.owner, bookedServiceId],
   );
   const booking = await pool.query(
     `INSERT INTO booking (student_id, service_id, scheduled_at, availability_slot_id, status,
@@ -124,6 +124,7 @@ describe('mentor service management', () => {
       description: valid.description,
       priceCents: valid.priceCents,
       durationMinutes: valid.durationMinutes,
+      availability: [],
     });
   });
 
@@ -144,6 +145,7 @@ describe('mentor service management', () => {
     expect(await publicServices()).toContainEqual({
       id: created.id,
       ...update,
+      availability: [],
     });
   });
 
