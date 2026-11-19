@@ -39,8 +39,8 @@ Then edit `.env`:
 - Keep `DATABASE_URL` consistent with `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`
   (same user, password and database name).
 - Set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` to your Stripe test-mode API keys. Checkout
-  uses test payments only. The backend verifies payment during booking and dashboard requests, so local checkout does
-  not require the Stripe CLI or a webhook secret.
+  uses test payments only. The backend verifies payments during checkout, booking and dashboard
+  requests. See [Stripe payments](docs/payments/stripe.md) for the reload, expiry and retry flow.
 - Write values as `KEY=value`. Never commit `.env`; each person has their own secret.
 
 Start the database, then create the tables and load the sample data:
