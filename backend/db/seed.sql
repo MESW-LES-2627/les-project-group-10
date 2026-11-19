@@ -253,3 +253,24 @@ FROM (VALUES
   ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000008', 2500, 'succeeded', 'pending', NULL, NULL,                1)
 ) AS v(id, booking_id, amount_cents, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago)
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Admin (subclass): the first administrator, for local development only.
+-- Log in with admin@example.com / Password123!
+-- Unlike the accounts above, this password hash uses the algorithm the login verifies
+-- (scrypt, "salt:hash"), so this account CAN log in. It was generated with hashPassword().
+-- The password is public in this repository: NEVER run this seed on a shared or deployed database.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO "user" (id, username, email, password_hash)
+VALUES (
+  '10000000-0000-0000-0000-000000000011',
+  'Platform Admin',
+  'admin@example.com',
+  '96caf385d29513a1a0b326a0256c8dc9:c1137b6b00a978d076e02953e54988f71bce3fc47043385b90c3fd8cbe5fb3a18a1eb5ccd1fcf775bad84b13625e1e702d4099f06a3212f5a4a7c53598761af7'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO admin (user_id)
+VALUES ('10000000-0000-0000-0000-000000000011')
+ON CONFLICT DO NOTHING;

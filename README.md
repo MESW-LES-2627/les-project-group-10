@@ -110,6 +110,10 @@ They **cannot log in**, because their passwords were hashed with a different alg
 login uses. Create your own account at http://localhost:5173/signup instead. Registering as a
 mentor leads to the onboarding steps; finishing them saves your profile.
 
+The one exception is the seeded **admin**, which can log in: `admin@example.com` / `Password123!`
+(see [docs/admin/admin-user-list.md](docs/admin/admin-user-list.md)). Its password is public, so
+**never run the seed on a shared or deployed database.**
+
 ## Project tree
 
 ```

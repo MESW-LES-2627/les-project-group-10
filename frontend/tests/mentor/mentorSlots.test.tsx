@@ -41,6 +41,7 @@ const owner = {
   email: 'jane@example.com',
   isMentor: true,
   isStudent: false,
+  isAdmin: false,
   onboardingFinished: true,
 };
 const mentor: Mentor = {
