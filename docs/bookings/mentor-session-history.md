@@ -1,22 +1,24 @@
 # Mentor session history
 
-Open **Mentor sessions** in the dashboard sidebar. **Upcoming sessions** starts with the nearest scheduled time. **Past sessions** starts with the most recent session. Both sections show the saved booking status and the latest saved Stripe test payment status. Cancelled and unpaid records stay visible with their own statuses.
+## Dashboard
 
-Open a session to see the student's name, booked service and duration, scheduled start in Lisbon time, and both statuses. The service title and duration are saved with the booking and survive later service edits or deactivation. Reload the page to see the current grouping and saved statuses. A past session keeps its saved booking status.
+Signed-in mentors can open **Mentor sessions** in the dashboard sidebar at `/dashboard/mentor-sessions`. **Upcoming sessions** shows the next start time first. **Past sessions** shows the most recent start time first. Each section has its own empty state.
 
-The list and detail endpoints check the signed-in mentor's ownership. A session outside that mentor's account returns the same 404 response as a missing session.
+A row links to `/dashboard/mentor-sessions/:bookingId`. The detail page shows the student name, booked service, duration, scheduled start in Lisbon time, booking status, and payment status. Cancelled and unpaid records stay visible with their saved statuses.
 
-## Local acceptance checks for issue #26
+## API
 
-Verified in Chromium with the running app and a separate local PostgreSQL database. The fixtures cover saved Stripe test payment outcomes and a booking that has no payment attempt.
+The dashboard calls the [booking history client](../../frontend/src/api/bookingHistory.ts). The [Express routes](../../backend/src/modules/bookings/bookingHistory.routes.ts) provide two read-only endpoints.
 
-| Step                                                                                    | Expected result                                                                                          | Observed result                                                                                                                                                       |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sign in as a mentor with future and past bookings. Open **Mentor sessions**.            | Upcoming and past bookings appear separately by scheduled start time.                                    | Future bookings appeared soonest first. Past bookings appeared most recent first.                                                                                     |
-| Open the future confirmed session after changing and deactivating its service.          | The page shows the student, booked service, duration, date and time, booking status, and payment status. | The original title and 60-minute duration appeared with the student, Lisbon start time, **Confirmed**, and **Succeeded (test)**.                                      |
-| Check future records with failed, expired, and missing payments. Open the failed one.   | Cancelled or unpaid records are distinguishable from confirmed sessions with a successful test payment.  | The rows showed **Cancelled** with **Failed** or **Expired**, or **Pending payment** with **Not attempted**. The failed session showed **Failed** on its detail page. |
-| Open a confirmed session whose start time has passed.                                   | It appears in **Past sessions** and keeps its saved status.                                              | Its list row and detail page still showed **Confirmed**. A separately completed session showed **Completed**.                                                         |
-| Sign in as a mentor with no bookings and open the list on a mobile viewport.            | Both sections show their empty states.                                                                   | **No upcoming sessions yet.** and **No past sessions yet.** appeared.                                                                                                 |
-| While signed in as the second mentor, open a detail URL for the first mentor's booking. | Access is denied and private details are absent from the response.                                       | The API returned 404 with a generic error, and the page displayed **Session not found.**                                                                              |
+| Endpoint                                       | Response                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------- |
+| `GET /api/bookings/mentor-sessions`            | `{ upcoming, past }`, with an array of sessions in each section |
+| `GET /api/bookings/mentor-sessions/:bookingId` | `{ session }` for the requested booking                         |
 
-Frontend tests cover navigation, payment labels, empty sections and failure states. PostgreSQL integration tests cover the time split, payment selection, booked snapshots, and access control.
+Both routes require a signed-in mentor and return `Cache-Control: no-store` after authentication. The queries scope the results to the signed-in mentor through the booked service's `mentor_id`. A missing, invalid, or unowned booking ID returns the same 404 response.
+
+## Data and status
+
+The [PostgreSQL queries](../../backend/src/modules/bookings/bookingHistory.queries.ts) group sessions using `booking.scheduled_at` and the database clock at request time. Passing the scheduled start moves the session into **Past sessions** while keeping its saved booking status.
+
+The service title and duration come from the booking snapshot, so they survive service edits and deactivation. The student name comes from the student's current account. The payment status comes from the latest saved Stripe test payment attempt, ordered by creation time with the payment ID as a tiebreaker. With no attempt, the API returns `null` and the dashboard shows **Not attempted**.
