@@ -2,6 +2,7 @@
 
 ## Features
 
+- [Admin user list](admin/admin-user-list.md)
 - [Stripe payments](payments/stripe.md)
 - [Mentor profile editing](profile/mentor-profile-editing.md)
 - [Student profile page](profile/student-profile.md)

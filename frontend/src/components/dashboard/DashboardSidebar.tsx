@@ -7,6 +7,7 @@ import {
   Search,
   Settings,
   UserRound,
+  UsersRound,
   SlidersHorizontal,
   Briefcase,
 } from 'lucide-react';
@@ -77,6 +78,9 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
                 { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
                 { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
               ]
+            : []),
+          ...(user?.isAdmin
+            ? [{ label: 'Users', icon: UsersRound, href: '/dashboard/admin/users' }]
             : []),
         ].map((item) => {
           const active = isActiveItem(item.href, pathname, hash);

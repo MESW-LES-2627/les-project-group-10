@@ -23,6 +23,7 @@ import BookingConfirmedPage from '@/pages/mentors/BookingConfirmedPage';
 import StudentProfilePage from '@/pages/dashboard/StudentProfilePage';
 import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
+import AdminUsersPage from '@/pages/admin/AdminUsersPage';
 import { RequireAuth } from '@/layouts/RequireAuth';
 
 /**
@@ -79,6 +80,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <MentorServicesPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/admin/users',
+    element: (
+      <RequireAuth>
+        <AdminUsersPage />
       </RequireAuth>
     ),
   },
