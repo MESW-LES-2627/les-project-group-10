@@ -130,6 +130,11 @@ try {
   const deployedUrl = deployment.origin;
   console.log(`Staged ${target} deployment: ${deployedUrl}`);
   if (!process.argv.includes('--stage-only')) {
+    const staticDir = path.join(root, '.vercel/output/static');
+    const expectedHtml = await readFile(path.join(staticDir, 'index.html'), 'utf8');
+    const script = expectedHtml.match(/\bsrc="(\/assets\/[^"?#]+\.js)"/)?.[1];
+    if (!script) throw new Error('The built homepage does not reference a JavaScript bundle');
+    const expectedScriptHash = hash(await readFile(path.join(staticDir, script)));
     const previous = JSON.parse(
       vercel(['inspect', environment.origin, '--json', '--non-interactive']),
     );
@@ -141,23 +146,19 @@ try {
       for (let attempt = 0; ; attempt++) {
         try {
           verifyHealth(get('/api/health'));
+          if (!get('/').includes(script))
+            throw new Error(`The public homepage does not reference the expected bundle ${script}`);
+          if (hash(get(script)) !== expectedScriptHash)
+            throw new Error(`The public JavaScript does not match this build: ${script}`);
           break;
         } catch (error) {
           if (attempt === 4) throw error;
+          console.warn(
+            `Public release verification attempt ${attempt + 1} failed: ${error.message}`,
+          );
           await setTimeout(2_000);
         }
       }
-      const expectedHtml = await readFile(
-        path.join(root, '.vercel/output/static/index.html'),
-        'utf8',
-      );
-      const script = expectedHtml.match(/\bsrc="(\/assets\/[^"?#]+\.js)"/)?.[1];
-      if (!script || !get('/').includes(script))
-        throw new Error('The public frontend does not match this build');
-      if (
-        hash(get(script)) !== hash(await readFile(path.join(root, '.vercel/output/static', script)))
-      )
-        throw new Error('The public JavaScript does not match this build');
     } catch (error) {
       console.error('Public release verification failed; restoring the previous deployment');
       vercel(['rollback', previous.id, '--yes', '--non-interactive']);
