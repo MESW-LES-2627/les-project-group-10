@@ -52,7 +52,11 @@ if (kind === 'curl') {
   const stale = process.env.PUBLIC_STALE_ONCE && !oldEvents.includes('"kind":"curl"');
   const url = args.at(-1);
   if (url.endsWith('/api/health')) console.log(process.env.BAD_HEALTH || JSON.stringify({...health, revision: stale ? 'old' : health.revision}));
-  else if (url.endsWith('/')) console.log(process.env.BAD_HTML || process.env.HTML);
+  else if (url.endsWith('/')) {
+    const staleHomepage = process.env.PUBLIC_HOMEPAGE_STALE_ONCE &&
+      !oldEvents.includes(JSON.stringify(url));
+    console.log(staleHomepage ? '<html>old build</html>' : process.env.BAD_HTML || process.env.HTML);
+  }
   else process.stdout.write(process.env.BAD_ASSET || process.env.JAVASCRIPT);
 } else if (args[0] === 'project') {
   console.log(JSON.stringify({id: process.env.BAD_INSPECTION ? 'wrong' : project.projectId, name: 'feup-connect-' + process.env.TEST_TARGET, accountId: project.orgId}));
@@ -225,5 +229,16 @@ test('waits for the public domain to serve the expected revision', async (t) => 
   const result = f.run('staging', { PUBLIC_STALE_ONCE: '1' });
   assert.equal(result.status, 0, result.stderr);
   assert.equal((await f.events()).filter((e) => e.kind === 'curl').length, 4);
+  await f.assertClean();
+});
+
+test('waits for the public homepage after health reports the new revision', async (t) => {
+  const f = await fixture(t);
+  const result = f.run('production', { PUBLIC_HOMEPAGE_STALE_ONCE: '1' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /public homepage does not reference the expected bundle/);
+  const events = await f.events();
+  assert.equal(events.filter((event) => event.args.at(-1) === 'https://les.simaob.com/').length, 2);
+  assert.ok(!events.some((event) => event.args[0] === 'rollback'));
   await f.assertClean();
 });
