@@ -18,3 +18,4 @@
 - [Definition of done](definition-of-done.md)
 - [Iteration 0](iterations/0/CLAIM.md)
 - [Iteration 1](iterations/1/CLAIM.md)
+- [Iteration 2](iterations/2/CLAIM.md)
