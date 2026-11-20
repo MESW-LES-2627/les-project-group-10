@@ -140,7 +140,7 @@ npm --prefix frontend test
 
 The integration suite (`backend/tests/mentors/mentors.slots.integration.test.ts`) runs against a
 real PostgreSQL 17 database whose name ends in `_test` — see
-[mentor-profile-editing.md](mentor-profile-editing.md#migration-and-local-checks) for the exact
+[mentor-profile-editing.md](../profile/mentor-profile-editing.md#migration-and-local-checks) for the exact
 Docker/`createdb` setup. It covers: creating and listing a future slot, rejecting an overlapping
 slot (including across services), allowing a back-to-back boundary slot, every rejection reason
 (past, inverted/short range, foreign service), moving an available slot, refusing to change or
@@ -156,4 +156,4 @@ npm --prefix backend run typecheck
 npm --prefix backend run build
 ```
 
-See [acceptance evidence](testing/issue-23-acceptance.md) for executed scenarios and results.
+See [acceptance evidence](issue-23-acceptance.md) for executed scenarios and results.

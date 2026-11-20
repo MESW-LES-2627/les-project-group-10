@@ -130,7 +130,7 @@ npm --prefix frontend test
 
 The integration suite (`backend/tests/mentors/mentors.services.integration.test.ts`) runs against a
 real PostgreSQL 17 database whose name ends in `_test` — see
-[mentor-profile-editing.md](mentor-profile-editing.md#migration-and-local-checks) for the exact
+[mentor-profile-editing.md](../profile/mentor-profile-editing.md#migration-and-local-checks) for the exact
 Docker/`createdb` setup. It covers: adding a service and seeing it on the public profile, updating a
 service and seeing the new details persist, a service with an existing booking keeping that
 booking's title/duration/agreed price/payment amount unchanged after the service is edited,
