@@ -123,22 +123,6 @@ WHERE m.user_id = v.user_id::uuid;
 UPDATE mentor SET onboarding_finished = true
 WHERE user_id::text LIKE '10000000-0000-0000-0000-%';
 
--- Seed bookable times separately so rerunning the seed adds only new future slots.
-INSERT INTO mentor_availability_slot (mentor_id, starts_at)
-SELECT m.user_id,
-       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon'
-FROM mentor m
-JOIN "user" u ON u.id = m.user_id
-CROSS JOIN LATERAL generate_series(
-  current_date + 1,
-  current_date + 30,
-  interval '1 day'
-) AS days(slot_day)
-CROSS JOIN (VALUES (TIME '09:00'), (TIME '11:00'), (TIME '14:00'), (TIME '16:00')) AS times(start_time)
-WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
-  AND EXTRACT(ISODOW FROM slot_day) BETWEEN 1 AND 5
-ON CONFLICT (mentor_id, starts_at) DO NOTHING;
-
 -- ---------------------------------------------------------------------------
 -- Mentor <-> category
 -- ---------------------------------------------------------------------------
@@ -193,16 +177,43 @@ FROM (VALUES
 ) AS v(id, mentor_id, title, description, price_cents, duration_minutes, is_active)
 ON CONFLICT DO NOTHING;
 
+-- Seed bookable times separately so rerunning the seed adds only new future slots.
+-- Each mentor's cheapest active service stands in for "the service this slot is for";
+-- none of the fixed times below overlap once that service's duration is added.
+INSERT INTO mentor_availability_slot (mentor_id, service_id, starts_at, ends_at)
+SELECT m.user_id, svc.id,
+       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon',
+       (slot_day::date + start_time) AT TIME ZONE 'Europe/Lisbon'
+         + (svc.duration_minutes || ' minutes')::interval
+FROM mentor m
+JOIN "user" u ON u.id = m.user_id
+JOIN LATERAL (
+  SELECT id, duration_minutes FROM service
+   WHERE mentor_id = m.user_id AND is_active
+   ORDER BY price_cents, title LIMIT 1
+) svc ON true
+CROSS JOIN LATERAL generate_series(
+  current_date + 1,
+  current_date + 30,
+  interval '1 day'
+) AS days(slot_day)
+CROSS JOIN (VALUES (TIME '09:00'), (TIME '11:00'), (TIME '14:00'), (TIME '16:00')) AS times(start_time)
+WHERE m.onboarding_finished AND NOT u.is_banned AND NOT u.is_deleted
+  AND EXTRACT(ISODOW FROM slot_day) BETWEEN 1 AND 5
+ON CONFLICT (mentor_id, starts_at) DO NOTHING;
+
 -- ---------------------------------------------------------------------------
 -- Bookings: all four statuses; Ana and Diogo book as students with other mentors
 -- day_offset is relative to today (negative = past), hour is the start hour
 -- ---------------------------------------------------------------------------
 
-INSERT INTO booking (id, student_id, service_id, scheduled_at, status, created_at)
+INSERT INTO booking (id, student_id, service_id, scheduled_at, status, created_at,
+                     service_title, service_duration_minutes, service_price_cents)
 SELECT v.id::uuid, v.student_id::uuid, v.service_id::uuid,
        date_trunc('day', now()) + make_interval(days => v.day_offset, hours => v.hour),
        v.status,
-       now() - make_interval(days => v.created_days_ago)
+       now() - make_interval(days => v.created_days_ago),
+       s.title, s.duration_minutes, s.price_cents
 FROM (VALUES
   -- id, student, service, day_offset, hour, status, created_days_ago
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000001', -10, 15, 'completed',       14),  -- Beatriz -> Ana, OOD tutoring
@@ -214,6 +225,7 @@ FROM (VALUES
   ('30000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003',  -2, 18, 'completed',        5),  -- Ana (as student) -> Rui, code review
   ('30000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000008',   1, 13, 'confirmed',        1)   -- Diogo (as student) -> Inês, statistics
 ) AS v(id, student_id, service_id, day_offset, hour, status, created_days_ago)
+JOIN service s ON s.id = v.service_id::uuid
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -240,4 +252,25 @@ FROM (VALUES
   ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000007', 1500, 'succeeded', 'pending', NULL, NULL,                5),
   ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000008', 2500, 'succeeded', 'pending', NULL, NULL,                1)
 ) AS v(id, booking_id, amount_cents, status, payout_status, paid_out_days_ago, payout_reference, created_days_ago)
+ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Admin (subclass): the first administrator, for local development only.
+-- Log in with admin@example.com / Password123!
+-- Unlike the accounts above, this password hash uses the algorithm the login verifies
+-- (scrypt, "salt:hash"), so this account CAN log in. It was generated with hashPassword().
+-- The password is public in this repository: NEVER run this seed on a shared or deployed database.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO "user" (id, username, email, password_hash)
+VALUES (
+  '10000000-0000-0000-0000-000000000011',
+  'Platform Admin',
+  'admin@example.com',
+  '96caf385d29513a1a0b326a0256c8dc9:c1137b6b00a978d076e02953e54988f71bce3fc47043385b90c3fd8cbe5fb3a18a1eb5ccd1fcf775bad84b13625e1e702d4099f06a3212f5a4a7c53598761af7'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO admin (user_id)
+VALUES ('10000000-0000-0000-0000-000000000011')
 ON CONFLICT DO NOTHING;

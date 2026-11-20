@@ -2,6 +2,10 @@
 
 Platform connecting students with tutors, mentors and industry professionals.
 
+See the [documentation index](docs/README.md) for feature guides and project notes.
+
+See [Deployment](docs/deployment.md) for the Vercel/Neon setup and the `develop` staging → `main` production release flow.
+
 See the [Definition of Done](docs/definition-of-done.md) for the checklist used to
 verify and complete user stories, and the [Design Report](docs/design.md) for the domain
 model, architecture, and design decisions.
@@ -35,8 +39,8 @@ Then edit `.env`:
 - Keep `DATABASE_URL` consistent with `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`
   (same user, password and database name).
 - Set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` to your Stripe test-mode API keys. Checkout
-  uses test payments only. The backend verifies payment by polling Stripe, so local checkout does
-  not require the Stripe CLI or a webhook secret.
+  uses test payments only. The backend verifies payments during checkout, booking and dashboard
+  requests. See [Stripe payments](docs/payments/stripe.md) for the reload, expiry and retry flow.
 - Write values as `KEY=value`. Never commit `.env`; each person has their own secret.
 
 Start the database, then create the tables and load the sample data:
@@ -106,6 +110,10 @@ They **cannot log in**, because their passwords were hashed with a different alg
 login uses. Create your own account at http://localhost:5173/signup instead. Registering as a
 mentor leads to the onboarding steps; finishing them saves your profile.
 
+The one exception is the seeded **admin**, which can log in: `admin@example.com` / `Password123!`
+(see [docs/admin/admin-user-list.md](docs/admin/admin-user-list.md)). Its password is public, so
+**never run the seed on a shared or deployed database.**
+
 ## Project tree
 
 ```
@@ -169,8 +177,30 @@ unit test and the `BookingPanel` component test.
 (cd frontend && npm test)
 ```
 
-Backend tests are unit tests only: pure functions such as password hashing, session tokens, and
-Zod schemas. There is no database or network involved, and no Stripe calls are made.
+The default backend test suite covers pure functions such as password hashing, session tokens,
+and Zod schemas. It uses no database or network, and makes no Stripe calls.
+
+`npm test` runs those unit tests. Database integration tests run separately and need a disposable
+database, because they run migrations and insert and delete real rows. The config
+(`backend/vitest.integration.config.ts`) refuses to start unless `TEST_DATABASE_URL` is set and the
+database name ends in `_test`, so they can never touch your development data. Create it once, then
+run the tests from the repository root (replace the credentials if yours differ from
+`.env.example`):
+
+```bash
+docker compose up -d db
+docker compose exec db sh -c 'createdb -U "$POSTGRES_USER" feup_connect_test'
+(cd backend && TEST_DATABASE_URL=postgres://feup:feup@localhost:5432/feup_connect_test npm run test:integration)
+```
+
+The tests apply the migrations to that database themselves (no `db:migrate` or `db:seed` needed) and
+clean up their own rows. Without `TEST_DATABASE_URL` you get "TEST_DATABASE_URL must point to a
+disposable database with a name ending in \_test", which is the guard working, not a bug. Drop the
+database when you no longer need it with
+`docker compose exec db sh -c 'dropdb -U "$POSTGRES_USER" feup_connect_test'`.
+
+The integration tests cover profiles, booking reservations, concurrent checkout, deployment
+readiness, student profiles and the categories list. Stripe is mocked. CI runs both suites.
 
 Frontend tests are a mix of:
 
@@ -207,16 +237,17 @@ Node versions below that with an `ERR_REQUIRE_ESM` error from one of jsdom's CSS
 
 ## Useful commands
 
-| Where    | Command                                   | What it does                   |
-| -------- | ----------------------------------------- | ------------------------------ |
-| root     | `npm run format` / `npm run format:check` | Format / check formatting      |
-| backend  | `npm run lint` / `npm run typecheck`      | ESLint / TypeScript check      |
-| backend  | `npm test`                                | Run Vitest unit tests          |
-| backend  | `npm run db:migrate` / `npm run db:seed`  | Apply new migrations / seed    |
-| frontend | `npm run lint` / `npm run build`          | ESLint / type check and build  |
-| frontend | `npm test`                                | Run Vitest unit tests          |
-| root     | `docker compose down`                     | Stop the database (keeps data) |
-| root     | `docker compose down -v`                  | Stop and wipe the database     |
+| Where    | Command                                        | What it does                                 |
+| -------- | ---------------------------------------------- | -------------------------------------------- |
+| root     | `npm run format` / `npm run format:check`      | Format / check formatting                    |
+| backend  | `npm run lint` / `npm run typecheck`           | ESLint / TypeScript check                    |
+| backend  | `npm test`                                     | Run Vitest unit tests                        |
+| backend  | `TEST_DATABASE_URL=… npm run test:integration` | Run database integration tests (see Testing) |
+| backend  | `npm run db:migrate` / `npm run db:seed`       | Apply new migrations / seed                  |
+| frontend | `npm run lint` / `npm run build`               | ESLint / type check and build                |
+| frontend | `npm test`                                     | Run Vitest unit tests                        |
+| root     | `docker compose down`                          | Stop the database (keeps data)               |
+| root     | `docker compose down -v`                       | Stop and wipe the database                   |
 
 ## Troubleshooting
 

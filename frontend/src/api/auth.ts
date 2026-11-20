@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   isStudent: boolean;
   isMentor: boolean;
+  isAdmin: boolean;
   onboardingFinished: boolean;
 }
 

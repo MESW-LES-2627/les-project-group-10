@@ -29,6 +29,7 @@ const owner = {
   email: 'jane@example.com',
   isMentor: true,
   isStudent: true,
+  isAdmin: false,
   onboardingFinished: true,
 };
 const saved: EditableMentorProfile = {
@@ -60,7 +61,6 @@ const mentor: Mentor = {
   experience: [],
   services: [],
   posts: [],
-  availability: [],
   reviews: [],
 };
 let auth: AuthContextValue;
@@ -295,7 +295,7 @@ describe('simplified mentor registration', () => {
       password: 'ProfileTest123!',
     });
     expect(screen.queryByLabelText('One-line intro')).toBeNull();
-    expect(screen.getByLabelText('Location')).toBeTruthy();
+    expect(await screen.findByLabelText('Location')).toBeTruthy();
   });
 
   it('collects one biography with the same limit as the profile editor', () => {

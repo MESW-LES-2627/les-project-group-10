@@ -8,6 +8,7 @@ export interface MentorService {
   description: string;
   duration: string;
   price: number;
+  availability: MentorAvailability[];
 }
 
 export interface MentorExperience {
@@ -67,7 +68,6 @@ export interface Mentor {
   experience: MentorExperience[];
   services: MentorService[];
   posts: MentorPost[];
-  availability: MentorAvailability[];
   reviews: MentorReview[];
 }
 
@@ -88,13 +88,13 @@ interface MentorProfileResponse {
   linkedinUrl: string;
   skills: string[];
   subjects: string[];
-  availability: MentorAvailability[];
   services: {
     id: string;
     title: string;
     description: string;
     priceCents: number;
     durationMinutes: number;
+    availability: MentorAvailability[];
   }[];
 }
 
@@ -129,9 +129,9 @@ function toMentor(profile: MentorProfileResponse): Mentor {
       description: service.description,
       duration: `${service.durationMinutes} min`,
       price: service.priceCents / 100,
+      availability: service.availability,
     })),
     posts: [],
-    availability: profile.availability,
     reviews: [],
   };
 }

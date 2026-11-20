@@ -108,9 +108,10 @@ export async function findPublicMentor(id: string) {
     [id],
   );
 
-  const availability = await pool.query<{ date: string; time: string }>(
+  const availability = await pool.query<{ date: string; time: string; service_id: string }>(
     `SELECT to_char(starts_at AT TIME ZONE 'Europe/Lisbon', 'YYYY-MM-DD') AS date,
-            to_char(starts_at AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS time
+            to_char(starts_at AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS time,
+            slot.service_id
        FROM mentor_availability_slot slot
       WHERE slot.mentor_id = $1 AND slot.starts_at > now()
         AND NOT EXISTS (
@@ -120,15 +121,23 @@ export async function findPublicMentor(id: string) {
            WHERE s.mentor_id = slot.mentor_id
              AND b.scheduled_at = slot.starts_at
              AND b.status <> 'cancelled'
+             AND NOT (
+               b.status = 'pending_payment' AND EXISTS (
+                 SELECT 1 FROM payment p WHERE p.booking_id = b.id
+                   AND p.status = 'pending' AND p.reservation_expires_at <= now()
+               )
+             )
         )
       ORDER BY slot.starts_at`,
     [id],
   );
-  const slotsByDate = new Map<string, string[]>();
+  const slotsByServiceAndDate = new Map<string, Map<string, string[]>>();
   for (const slot of availability.rows) {
-    const times = slotsByDate.get(slot.date) ?? [];
+    const byDate = slotsByServiceAndDate.get(slot.service_id) ?? new Map<string, string[]>();
+    const times = byDate.get(slot.date) ?? [];
     times.push(slot.time);
-    slotsByDate.set(slot.date, times);
+    byDate.set(slot.date, times);
+    slotsByServiceAndDate.set(slot.service_id, byDate);
   }
 
   return {
@@ -141,13 +150,16 @@ export async function findPublicMentor(id: string) {
     linkedinUrl: mentor.linkedin_url ?? '',
     skills: mentor.skills,
     subjects: mentor.subjects,
-    availability: [...slotsByDate].map(([date, times]) => ({ date, times })),
     services: services.rows.map((row) => ({
       id: row.id,
       title: row.title,
       description: row.description,
       priceCents: row.price_cents,
       durationMinutes: row.duration_minutes,
+      availability: [...(slotsByServiceAndDate.get(row.id) ?? [])].map(([date, times]) => ({
+        date,
+        times,
+      })),
     })),
   };
 }

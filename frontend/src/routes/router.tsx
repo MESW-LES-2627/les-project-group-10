@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import EditMentorProfilePage from '@/pages/mentors/EditMentorProfilePage';
+import MentorServicesPage from '@/pages/dashboard/MentorServicesPage';
 import LandingPage from '@/pages/landing/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
@@ -15,11 +16,18 @@ import StudentInterestsStep from '@/pages/student-onboarding/StudentInterestsSte
 import StudentPreferencesStep from '@/pages/student-onboarding/StudentPreferencesStep';
 import StudentAllSetPage from '@/pages/student-onboarding/StudentAllSetPage';
 import StudentDashboardPage from '@/pages/dashboard/StudentDashboardPage';
+import StudentBookingDetailsPage from '@/pages/dashboard/StudentBookingDetailsPage';
 import FindMentorsPage from '@/pages/mentors/FindMentorsPage';
 import MentorProfilePage from '@/pages/mentors/MentorProfilePage';
 import CheckoutPage from '@/pages/mentors/CheckoutPage';
 import BookingConfirmedPage from '@/pages/mentors/BookingConfirmedPage';
+import StudentProfilePage from '@/pages/dashboard/StudentProfilePage';
+import EditStudentProfilePage from '@/pages/dashboard/EditStudentProfilePage';
 import DashboardFindMentorsPage from '@/pages/dashboard/DashboardFindMentorsPage';
+import AdminUsersPage from '@/pages/admin/AdminUsersPage';
+import MentorSlotsPage from '@/pages/dashboard/MentorSlotsPage';
+import MentorSessionsPage from '@/pages/dashboard/MentorSessionsPage';
+import MentorSessionDetailsPage from '@/pages/dashboard/MentorSessionDetailsPage';
 import { RequireAuth } from '@/layouts/RequireAuth';
 
 /**
@@ -40,6 +48,30 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/dashboard/bookings/:bookingId',
+    element: (
+      <RequireAuth>
+        <StudentBookingDetailsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/mentor-sessions',
+    element: (
+      <RequireAuth>
+        <MentorSessionsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/mentor-sessions/:bookingId',
+    element: (
+      <RequireAuth>
+        <MentorSessionDetailsPage />
+      </RequireAuth>
+    ),
+  },
+  {
     path: '/dashboard/mentors',
     element: (
       <RequireAuth>
@@ -48,10 +80,50 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/dashboard/student',
+    element: (
+      <RequireAuth>
+        <StudentProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/student/edit',
+    element: (
+      <RequireAuth>
+        <EditStudentProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
     path: '/dashboard/profile',
     element: (
       <RequireAuth>
         <EditMentorProfilePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/slots',
+    element: (
+      <RequireAuth>
+        <MentorSlotsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/services',
+    element: (
+      <RequireAuth>
+        <MentorServicesPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/dashboard/admin/users',
+    element: (
+      <RequireAuth>
+        <AdminUsersPage />
       </RequireAuth>
     ),
   },
@@ -88,7 +160,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/student-onboarding',
-    element: <StudentOnboardingProvider />,
+    element: (
+      <RequireAuth>
+        <StudentOnboardingProvider />
+      </RequireAuth>
+    ),
     children: [
       { path: 'interests', element: <StudentInterestsStep /> },
       { path: 'preferences', element: <StudentPreferencesStep /> },

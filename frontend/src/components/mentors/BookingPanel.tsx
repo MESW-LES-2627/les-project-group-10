@@ -1,7 +1,7 @@
 import { ArrowRight, ChevronLeft, ChevronRight, Clock, Video } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '@/components/ui';
-import type { Mentor, MentorService } from '@/api/mentors';
+import type { MentorService } from '@/api/mentors';
 import {
   PLATFORM_FEE,
   dayNumber,
@@ -18,7 +18,6 @@ import {
 import { useMemo, useState } from 'react';
 
 export interface BookingPanelProps {
-  mentor: Mentor;
   service: MentorService;
   date: string;
   time: string;
@@ -32,7 +31,6 @@ export interface BookingPanelProps {
  * open days, and the time slots for the selected day.
  */
 export function BookingPanel({
-  mentor,
   service,
   date,
   time,
@@ -41,14 +39,14 @@ export function BookingPanel({
   onContinue,
 }: BookingPanelProps) {
   const [weekStart, setWeekStart] = useState(() =>
-    startOfWeek(date || mentor.availability[0]?.date || '2026-10-20'),
+    startOfWeek(date || service.availability[0]?.date || '2026-10-20'),
   );
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
   const openDays = useMemo(
-    () => new Set(mentor.availability.map((slot) => slot.date)),
-    [mentor.availability],
+    () => new Set(service.availability.map((slot) => slot.date)),
+    [service.availability],
   );
-  const times = mentor.availability.find((slot) => slot.date === date)?.times ?? [];
+  const times = service.availability.find((slot) => slot.date === date)?.times ?? [];
   const total = sessionTotal(service.price);
 
   return (
