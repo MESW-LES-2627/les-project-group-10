@@ -91,3 +91,73 @@ I would introduce a single backend feature responsible for pricing that owns the
 The booking feature would call this service instead of owning the calculation itself, converting Relationship B from model coupling toward contract coupling. The frontend would stop hardcoding its own fixed commission value, the checkout page would only display the breakdown already computed by the backend and returned through the checkout response, converting Relationship A from functional coupling to plain data coupling. The distance between frontend and backend remains unavoidably large, but what crosses that distance is now just numbers, not a duplicated business rule. The administrator settings screen would read and write the commission rate only through the pricing module's own interface, never by reaching directly into the booking module's internals, choosing contract coupling for Relationship C from the start instead of the naive model coupling shown above.
 
 This is better balanced rather than simply "more decoupled" because the distance in Relationship A cannot be reduced, frontend and backend will always be separate runtimes, so the redesign does not try to fight distance. Instead, it collapses the volatile, strongly shared knowledge into a single place, restoring cohesion, and it deliberately selects the weakest available integration strength for Relationship C, whose distance and volatility cannot be lowered. When volatility and distance are fixed, integration strength is the only lever left worth spending design effort on.
+
+### 4.2. Scenario 2: Hardcoded Europe/Lisbon timezone across scheduling (Iteration 2)
+
+#### Change scenario and design context
+
+Right now, every scheduling time in the application is assumed to be Lisbon time. Slots are stored correctly as absolute instants (`TIMESTAMPTZ`), but the API never sends instants. It exchanges wall-clock strings with no zone, such as `date: "2026-12-01"` and `time: "09:00"`, and both sides silently agree that these strings mean Europe/Lisbon. That agreement is written down separately in many places:
+
+- In the backend, the literal `AT TIME ZONE 'Europe/Lisbon'` appears in three query files across two modules: the bookings module when it creates a pending booking, looks up the requested slot and reconciles expired reservations (`bookings.queries.ts`), the mentors module when it lists a mentor's public availability (`mentors.queries.ts`), and the mentor slot management feature when it creates, edits and lists slots (`mentors.slots.queries.ts`). The seed data repeats it.
+- In the frontend, the student dashboard and the booking confirmation page format times with `timeZone: 'Europe/Lisbon'`. The booking panel, checkout page, slot management page and mentor onboarding show fixed labels such as "Times shown in Lisbon time (WEST)" and "Lisbon (WEST, UTC+1)".
+
+The plausible future change is that mentors and students no longer share a timezone. The vision already includes tutors from outside the university. A FEUP graduate now working in Munich or São Paulo, or a FEUP student on Erasmus, is a natural mentor or mentee for a session held online. Each user would set their own timezone. A mentor publishes slots in their own local time, and each student sees and books those slots in their own local time.
+
+The volatility of this knowledge is already visible. The labels "WEST" and "UTC+1" are only correct in summer. Portugal moves to WET (UTC+0) from late October to late March, so these static labels are wrong for about five months of the year.
+
+#### Coupling and cohesion analysis
+
+| Relationship | Integration strength | Evidence for strength                                                                                                                                                                                                                                | Distance | Evidence for distance                                                                                                                   | Volatility | Evidence for volatility                                                                                                                                                                                   |
+| ------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A            | Functional coupling  | The API's zone-less `date`/`time` strings only make sense if the frontend and backend both assume the same timezone. The frontend repeats that assumption in its own formatting (`timeZone: 'Europe/Lisbon'`) and in its labels                      | D5       | The frontend and the backend are different runtimes in different languages: TypeScript in the browser, SQL inside the backend's queries | V4         | Under the proposed change, the zone becomes a per-user setting that differs between the two sides of one booking. Even today, the summer/winter offset makes the fixed labels wrong for part of each year |
+| B            | Functional coupling  | Checkout finds the slot by turning the student's `date` + `time` back into an instant and checking it for equality. This only works if the bookings module converts with exactly the same zone that the mentors module used to produce those strings | D4       | The conversion happens in the bookings module and the mentors module, which are separate top-level modules under `backend/src/modules`  | V4         | Once zones become per-user, the zone used to read a slot (the mentor's) and the zone used to book it (the student's) can differ, and the equality check breaks with `409 slot_unavailable`                |
+| C            | Model coupling       | Every module reads and writes the same `starts_at` / `ends_at` / `scheduled_at` `TIMESTAMPTZ` columns, and the overlap exclusion constraint works on those instant ranges                                                                            | D2       | The columns and the queries that use them belong to the same persistence layer of one backend                                           | V1         | An absolute instant does not depend on any user's zone. The proposed change does not touch how time is stored, only how it is converted at the edges                                                      |
+
+**Relationship A: Frontend and backend agree on the meaning of a time string**
+
+Classification: Functional coupling / D5 / V4
+
+What crosses the boundary looks like plain data, but the strings cannot be interpreted without a rule that is not part of the contract: "this time is in Lisbon". The frontend has to know that rule to label times and to format the instants it does receive (`scheduled_at`). So the coupling is functional, not data coupling. It is as distant as it can be and, under the proposed change, highly volatile.
+
+Assessment: This is not well balanced and needs design attention. It has the same shape as Relationship A in Scenario 1: a volatile rule duplicated across the frontend and backend boundary. If one side starts using a per-user zone and the other does not, every displayed time is silently off by the difference, with no error.
+
+**Relationship B: Checkout re-derives an instant that another module formatted**
+
+Classification: Functional coupling / D4 / V4
+
+The public profile in the mentors module turns each slot's instant into Lisbon wall-clock strings. The student's browser sends those strings back unchanged, and the bookings module turns them back into an instant and compares that instant with `starts_at`. The slot is found only if both conversions match exactly. Neither module calls the other, but each relies on the other's conversion rule. The same pattern is repeated in the reservation reconciliation query.
+
+Assessment: This is not well balanced. It is worse than Relationship A in one respect: when it goes wrong, nothing is displayed incorrectly. A valid slot is reported as "no longer available" and the booking fails. Round-tripping a value through a lossy, zone-dependent text format between two modules is unnecessary, because the slot already has a stable identity.
+
+**Relationship C: Storing time as absolute instants**
+
+Classification: Model coupling / D2 / V1
+
+All modules depend on the structure of the scheduling columns, but those columns hold `TIMESTAMPTZ` instants that do not depend on any zone. The `EXCLUDE USING gist` overlap constraint and the `starts_at > now()` checks are correct whatever zone the mentor or student is in.
+
+Assessment: This is well balanced. The shared knowledge is close and stable, and it is the right foundation for the change. The existing design already did the hard part. The problem is only that this zone-free representation is converted into Lisbon wall-clock time too early, inside the queries, instead of at the edges where a person reads or types a time.
+
+Cohesion here means that the knowledge "which zone applies to this person" should live in one place, and that zone conversion should happen only where a person and the system meet.
+
+Today, timezone knowledge is the opposite of cohesive. It is a volatile rule spread over three backend query files, two frontend formatting call sites and four hardcoded labels, while the stable representation it depends on (Relationship C) is already well placed. Gathering the conversion into one place is a cohesion fix: the rule gains a single owner, and the modules that only need "a point in time" stop knowing about zones at all.
+
+At the level of business domain analysis, time handling is a generic subdomain. It is a hard problem (daylight-saving transitions, local times that do not exist or occur twice, regional rule changes), but it is the same problem for every scheduling product and gives FEUP Connect no competitive advantage. This is the opposite of commission strategy in Scenario 1, which could become a core subdomain. The right response to a generic subdomain is to rely on proven solutions instead of building our own: the IANA timezone database already available in PostgreSQL (`AT TIME ZONE`) and in the browser (`Intl.DateTimeFormat`), and IANA zone names (`Europe/Lisbon`, `Europe/Berlin`) instead of fixed offsets or abbreviations such as "WEST".
+
+#### Alternatives, decision, and consequences
+
+I considered three options.
+
+1. **Keep a single zone, but name it once.** Replace each literal with one shared `SCHEDULING_TIME_ZONE` constant in the backend and one in the frontend, and generate the labels with `Intl` so the summer/winter abbreviation is correct. This is cheap and fixes the wrong "WEST" labels and the cohesion of Relationship B. However, it does not support the change: the rule is still duplicated across the frontend and backend boundary, and the API still sends zone-less strings.
+2. **Store slots as local wall-clock time plus a zone.** This represents "09:00 in Berlin" directly. I rejected it because overlap detection, `now()` comparisons and the exclusion constraint all need absolute instants. It would make the stable Relationship C volatile, and it would make the system deal with local times that do not exist (a DST gap) or occur twice (a DST overlap) in every query.
+3. **Use instants across every boundary and convert only at the edges (chosen).** Time is stored and sent as instants. Only the code that shows or accepts a time from a person knows about zones.
+
+Under the chosen design, the API would send and receive ISO 8601 instants (for example, `"startsAt": "2026-12-01T09:00:00Z"`) instead of `date`/`time` strings. The frontend would format them with the viewer's zone and derive the label from that zone, which turns Relationship A from functional coupling into data coupling. The only zone knowledge left in the frontend is "the zone of the person looking at the screen". Checkout would identify the slot by its id instead of a re-derived time. The bookings module would then stop converting zones altogether, which removes Relationship B instead of rebalancing it. Each user account would gain an IANA `time_zone` column, backfilled to `Europe/Lisbon` so that existing users see no change. Turning the mentor's typed date and time into an instant would happen in one backend scheduling helper, which reads the mentor's zone through a small function such as `getUserTimeZone(userId)` instead of each query joining the account table, so that new relationship starts as contract coupling. Relationship C stays as it is.
+
+The consequences are not all positive:
+
+- The availability, slot management and checkout endpoints change shape. The frontend and backend must be released together, and the integration tests that assert Lisbon strings must be rewritten to assert instants.
+- "Which day a slot falls on" now depends on the viewer. A 23:30 Lisbon slot is on the next day for a student in Berlin, so the booking panel's day grouping has to move from the backend into the frontend.
+- Mentors must see and be able to change their zone when they create slots. Otherwise the slot form's date and time inputs become ambiguous, which reintroduces the problem this change is meant to remove.
+- Future features that show a time to someone who is not looking at the screen, such as confirmation emails or reminders, must use the recipient's stored zone, not the browser's.
+
+This is better balanced, not just more decoupled. The frontend and backend distance cannot be reduced, so the design limits what crosses it to zone-free instants. The volatile knowledge (which zone a person is in) moves to a single owner per side. Relationship C, which was already balanced, is left alone. Choosing option 1 alone would be a reasonable first step if the international audience does not materialize, because it fixes today's incorrect labels without committing to the API change.
