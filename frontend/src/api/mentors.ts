@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPut, ApiError } from './client';
 import { getInitials, tagsFromSkills, mentorBioExcerpt } from '@/lib/mentorProfile';
+import { estimateReadTime, formatPostDate, postExcerpt } from '@/lib/mentorPosts';
 import type { AvatarTone, TagTone } from '@/components/ui';
 
 export interface MentorService {
@@ -22,8 +23,11 @@ export interface MentorPost {
   category: string;
   title: string;
   excerpt: string;
+  body?: string;
   readTime: string;
   published: string;
+  publishedAt?: string;
+  updatedAt?: string;
 }
 
 export interface MentorAvailability {
@@ -96,10 +100,17 @@ interface MentorProfileResponse {
     durationMinutes: number;
     availability: MentorAvailability[];
   }[];
+  posts?: {
+    id: string;
+    title: string;
+    body: string;
+    publishedAt: string;
+    updatedAt: string;
+  }[];
 }
 
 /**
- * Fills the page's display model; editorial profile content is not persisted yet.
+ * Fills the page's display model; editorial profile content beyond bio/services/posts is not persisted yet.
  */
 function toMentor(profile: MentorProfileResponse): Mentor {
   return {
@@ -131,7 +142,17 @@ function toMentor(profile: MentorProfileResponse): Mentor {
       price: service.priceCents / 100,
       availability: service.availability,
     })),
-    posts: [],
+    posts: (profile.posts ?? []).map((post) => ({
+      id: post.id,
+      category: 'Free post',
+      title: post.title,
+      excerpt: postExcerpt(post.body),
+      body: post.body,
+      readTime: estimateReadTime(post.body),
+      published: formatPostDate(post.publishedAt),
+      publishedAt: post.publishedAt,
+      updatedAt: post.updatedAt,
+    })),
     reviews: [],
   };
 }

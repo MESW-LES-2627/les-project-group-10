@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 import EditMentorProfilePage from '@/pages/mentors/EditMentorProfilePage';
 import MentorServicesPage from '@/pages/dashboard/MentorServicesPage';
+import MentorPostsPage from '@/pages/dashboard/MentorPostsPage';
+import MentorPostPage from '@/pages/mentors/MentorPostPage';
 import LandingPage from '@/pages/landing/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
@@ -120,6 +122,14 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/dashboard/posts',
+    element: (
+      <RequireAuth>
+        <MentorPostsPage />
+      </RequireAuth>
+    ),
+  },
+  {
     path: '/dashboard/admin/users',
     element: (
       <RequireAuth>
@@ -131,6 +141,10 @@ export const router = createBrowserRouter([
   {
     path: '/mentors/:mentorId',
     element: <MentorProfilePage />,
+  },
+  {
+    path: '/mentors/:mentorId/posts/:postId',
+    element: <MentorPostPage />,
   },
   {
     path: '/mentors/:mentorId/checkout',

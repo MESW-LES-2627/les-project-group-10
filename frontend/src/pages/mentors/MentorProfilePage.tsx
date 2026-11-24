@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { NavBar } from '@/components/layout/NavBar';
-import { Footer } from '@/components/layout/Footer';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -18,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Avatar, buttonVariants } from '@/components/ui';
 import { BookingPanel } from '@/components/mentors/BookingPanel';
-import { DashboardLayout } from '@/layouts/DashboardLayout';
+import { ProfileLayout } from '@/layouts/ProfileLayout';
 import { getMentorById } from '@/api/mentors';
 import { useAuth } from '@/auth/useAuth';
 import type { Mentor } from '@/api/mentors';
@@ -113,7 +110,7 @@ export default function MentorProfilePage() {
 
   if (missing) {
     return (
-      <ProfileLayout title="Mentor profile">
+      <ProfileLayout title="Mentor profile" loadingMessage="Loading profile…">
         <div className="mx-auto flex max-w-lg flex-col items-start gap-4 px-4 py-16 lg:px-8">
           <h1 className="font-display text-4xl font-bold tracking-tight text-ink">
             Mentor not found
@@ -130,7 +127,11 @@ export default function MentorProfilePage() {
   }
 
   if (!mentor) {
-    return <ProfileLayout title="Mentor profile">{null}</ProfileLayout>;
+    return (
+      <ProfileLayout title="Mentor profile" loadingMessage="Loading profile…">
+        {null}
+      </ProfileLayout>
+    );
   }
 
   const service = mentor.services.find((item) => item.id === serviceId) ?? mentor.services[0];
@@ -381,36 +382,70 @@ export default function MentorProfilePage() {
               id="posts"
               className="flex scroll-mt-6 flex-col gap-4 rounded-[20px] border border-line bg-surface p-7"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
                   Free posts from {firstName(mentor.name)}
                 </h2>
-                {mentor.posts.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllPosts((current) => !current)}
-                    className="font-sans text-sm font-medium text-secondary"
-                  >
-                    {showAllPosts ? 'Show less' : `View all ${mentor.posts.length}`}
-                  </button>
-                )}
+                <div className="flex items-center gap-4">
+                  {isOwner && (
+                    <Link
+                      to="/dashboard/posts"
+                      className="font-sans text-sm font-medium text-secondary underline"
+                    >
+                      Manage posts
+                    </Link>
+                  )}
+                  {mentor.posts.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllPosts((current) => !current)}
+                      className="font-sans text-sm font-medium text-secondary"
+                    >
+                      {showAllPosts ? 'Show less' : `View all ${mentor.posts.length}`}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {visiblePosts.map((post) => (
-                  <article key={post.id} className="flex flex-col gap-2 rounded-2xl bg-canvas p-5">
-                    <p className="font-sans text-xs font-semibold text-secondary">
-                      {post.category}
-                    </p>
-                    <h3 className="font-display text-lg font-semibold tracking-tight text-ink">
-                      {post.title}
-                    </h3>
-                    <p className="font-sans text-sm text-ink-soft">{post.excerpt}</p>
-                    <p className="font-sans text-xs text-ink-muted">
-                      {post.readTime} · {post.published}
-                    </p>
-                  </article>
-                ))}
-              </div>
+              {mentor.posts.length === 0 ? (
+                <p className="font-sans text-sm text-ink-soft">No free posts published yet.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {visiblePosts.map((post) => (
+                    <article
+                      key={post.id}
+                      className="flex flex-col justify-between gap-3 rounded-2xl bg-canvas p-5"
+                    >
+                      <div className="flex flex-col gap-2">
+                        <p className="font-sans text-xs font-semibold text-secondary">
+                          {post.category}
+                        </p>
+                        <h3 className="font-display text-lg font-semibold tracking-tight text-ink">
+                          <Link
+                            to={`/mentors/${mentor.id}/posts/${post.id}`}
+                            className="hover:underline"
+                          >
+                            {post.title}
+                          </Link>
+                        </h3>
+                        <p className="whitespace-pre-wrap font-sans text-sm text-ink-soft">
+                          {post.excerpt}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <p className="font-sans text-xs text-ink-muted">
+                          {post.readTime} · {post.published}
+                        </p>
+                        <Link
+                          to={`/mentors/${mentor.id}/posts/${post.id}`}
+                          className="font-sans text-xs font-semibold text-secondary hover:underline"
+                        >
+                          Read post →
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section
@@ -481,18 +516,5 @@ export default function MentorProfilePage() {
         </div>
       </div>
     </ProfileLayout>
-  );
-}
-
-function ProfileLayout({ title, children }: { title: string; children: ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <p role="status">Loading profile…</p>;
-  if (user) return <DashboardLayout title={title}>{children}</DashboardLayout>;
-  return (
-    <>
-      <NavBar className="max-sm:h-auto max-sm:flex-wrap max-sm:gap-4 max-sm:py-4" />
-      <main className="mx-auto max-w-7xl">{children}</main>
-      <Footer />
-    </>
   );
 }

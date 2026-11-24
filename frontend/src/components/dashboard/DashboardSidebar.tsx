@@ -3,6 +3,7 @@ import {
   Bookmark,
   Calendar,
   Clock,
+  FileText,
   LogOut,
   MessageSquare,
   Search,
@@ -70,6 +71,7 @@ export function DashboardSidebar({ open, onNavigate }: DashboardSidebarProps) {
           { label: 'My profile', icon: UserRound, href: '/dashboard/profile' },
           { label: 'Availability slots', icon: Clock, href: '/dashboard/slots' },
           { label: 'Services & fees', icon: Briefcase, href: '/dashboard/services' },
+          { label: 'Free posts', icon: FileText, href: '/dashboard/posts' },
         ]
       : []),
     ...(user?.isAdmin

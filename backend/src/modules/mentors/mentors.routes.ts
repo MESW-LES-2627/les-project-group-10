@@ -26,6 +26,14 @@ import {
   updateMentorService,
 } from './mentors.services.queries.js';
 import { mentorServiceActiveSchema, mentorServiceSchema } from './mentors.services.schemas.js';
+import {
+  createMentorPost,
+  deleteMentorPost,
+  findPublicMentorPost,
+  listMentorPosts,
+  updateMentorPost,
+} from './mentors.posts.queries.js';
+import { mentorPostSchema } from './mentors.posts.schemas.js';
 
 export const mentorsRouter = Router();
 
@@ -113,10 +121,52 @@ mentorsRouter.patch('/me/services/:id/active', requireAuth, async (req, res) => 
   res.json({ service });
 });
 
+mentorsRouter.get('/me/posts', requireAuth, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ posts: await listMentorPosts(res.locals.user.id) });
+});
+
+mentorsRouter.post('/me/posts', requireAuth, async (req, res) => {
+  const input = parseBody(mentorPostSchema, req.body);
+  const post = await withTransaction((client) =>
+    createMentorPost(client, res.locals.user.id, input),
+  );
+  res.status(201).json({ post });
+});
+
+mentorsRouter.put('/me/posts/:id', requireAuth, async (req, res) => {
+  const id = z.guid().safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'post_not_found', 'Post not found');
+  const input = parseBody(mentorPostSchema, req.body);
+  const post = await withTransaction((client) =>
+    updateMentorPost(client, res.locals.user.id, id.data, input),
+  );
+  res.json({ post });
+});
+
+mentorsRouter.delete('/me/posts/:id', requireAuth, async (req, res) => {
+  const id = z.guid().safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'post_not_found', 'Post not found');
+  await withTransaction((client) => deleteMentorPost(client, res.locals.user.id, id.data));
+  res.status(204).end();
+});
+
 // A mentor's public profile. Anyone can read it, logged in or not.
 mentorsRouter.get('/', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ mentors: await findPublicMentors() });
+});
+
+mentorsRouter.get('/:id/posts/:postId', async (req, res) => {
+  const mentorId = z.guid().safeParse(req.params.id);
+  const postId = z.guid().safeParse(req.params.postId);
+  const post =
+    mentorId.success && postId.success
+      ? await findPublicMentorPost(mentorId.data, postId.data)
+      : undefined;
+  if (!post) throw new HttpError(404, 'post_not_found', 'Post not found');
+  res.set('Cache-Control', 'no-store');
+  res.json({ post });
 });
 
 mentorsRouter.get('/:id', async (req, res) => {

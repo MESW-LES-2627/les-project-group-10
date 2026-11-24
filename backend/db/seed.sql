@@ -4,7 +4,9 @@
 -- Dates are relative to the moment the seed first runs ("5 days ago", "in 2 days").
 --
 -- DEV ONLY. Every account uses the password:  Password123!
--- Passwords are bcrypt hashes generated with pgcrypto, so the backend must verify them with bcrypt.
+-- Passwords are scrypt hashes (salt:hash) matching the format produced by backend hashPassword().
+-- Salt: deadbeefcafe00001234567890abcdef  (fixed for reproducibility)
+-- Hash was generated with: scrypt('Password123!', Buffer.from(salt,'hex'), 64)
 --
 -- Accounts
 --   Students only : Beatriz Santos, Tiago Ferreira, Marta Oliveira, Carlos Mendes (banned)
@@ -13,9 +15,7 @@
 --
 -- Id ranges: users 1000..., services 2000..., bookings 3000..., payments 4000...
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- ---------------------------------------------------------------------------
 -- Categories
 -- ---------------------------------------------------------------------------
 
@@ -40,7 +40,9 @@ ON CONFLICT DO NOTHING;
 -- ---------------------------------------------------------------------------
 
 INSERT INTO "user" (id, username, email, password_hash, is_banned, is_deleted)
-SELECT v.id::uuid, v.username, v.email, crypt('Password123!', gen_salt('bf', 10)), v.is_banned, v.is_deleted
+SELECT v.id::uuid, v.username, v.email,
+  'deadbeefcafe00001234567890abcdef:2140f29e95d89871ac1912a988ed24c88942096625b9f4241f3e8cd9c2f58497c9ce6fc31665b8371670535b5290ba6cdd57e56131c849bea42a2189b32f347d',
+  v.is_banned, v.is_deleted
 FROM (VALUES
   ('10000000-0000-0000-0000-000000000001', 'Ana Silva',       'ana.silva@example.com',       false, false),
   ('10000000-0000-0000-0000-000000000002', 'Rui Costa',       'rui.costa@example.com',       false, false),
@@ -273,4 +275,25 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO admin (user_id)
 VALUES ('10000000-0000-0000-0000-000000000011')
+ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Free educational posts
+-- ---------------------------------------------------------------------------
+
+INSERT INTO mentor_post (id, mentor_id, title, body, published_at, updated_at)
+SELECT v.id::uuid, v.mentor_id::uuid, v.title, v.body,
+       now() - make_interval(days => v.days_ago),
+       now() - make_interval(days => v.days_ago)
+FROM (VALUES
+  ('60000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   'How to spot Strategy vs State in OOD',
+   'Both patterns look similar in UML because a context delegates to an interface. The difference is intent: Strategy swaps interchangeable algorithms chosen by the caller, while State lets the object itself transition between internal modes as events happen.', 6),
+  ('60000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
+   'Checklist before your L.EIC design exam',
+   'Start from responsibilities before drawing arrows. Name each class after a domain concept, verify every association has a clear direction and multiplicity, and check that subclasses do not break the parent contract.', 2),
+  ('60000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002',
+   'Three PostgreSQL indexing habits for student projects',
+   'Index foreign keys that you join or filter on, put the most selective equality column first in a composite index, and verify with EXPLAIN ANALYZE before adding extra indexes that slow down writes.', 4)
+) AS v(id, mentor_id, title, body, days_ago)
 ON CONFLICT DO NOTHING;

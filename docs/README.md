@@ -9,6 +9,7 @@
 - [Mentor service management](mentors/mentor-service-management.md)
 - [Mentor availability slots](mentors/mentor-availability-slots.md)
   - [Availability acceptance evidence](mentors/issue-23-acceptance.md)
+- [Free educational posts](mentors/free-educational-posts.md)
 - [Mentor profile editing](profile/mentor-profile-editing.md)
 - [Student profile page](profile/student-profile.md)
 

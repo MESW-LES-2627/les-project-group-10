@@ -83,6 +83,14 @@ type ServiceRow = {
   duration_minutes: number;
 };
 
+type PostRow = {
+  id: string;
+  title: string;
+  body: string;
+  published_at: Date;
+  updated_at: Date;
+};
+
 // A mentor's public profile. Only finished, active mentors are visible, so a mentor who is
 // banned, deleted or still in onboarding looks the same as an id that does not exist.
 export async function findPublicMentor(id: string) {
@@ -140,6 +148,14 @@ export async function findPublicMentor(id: string) {
     slotsByServiceAndDate.set(slot.service_id, byDate);
   }
 
+  const posts = await pool.query<PostRow>(
+    `SELECT id, title, body, published_at, updated_at
+       FROM mentor_post
+      WHERE mentor_id = $1
+      ORDER BY published_at DESC, id DESC`,
+    [id],
+  );
+
   return {
     id: mentor.id,
     username: mentor.username,
@@ -160,6 +176,13 @@ export async function findPublicMentor(id: string) {
         date,
         times,
       })),
+    })),
+    posts: posts.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      publishedAt: row.published_at,
+      updatedAt: row.updated_at,
     })),
   };
 }
